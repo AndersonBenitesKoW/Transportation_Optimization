@@ -1,0 +1,34 @@
+________________________________________
+1. Configuración del Backend (Python/FastAPI)
+Ubícate en la carpeta del backend abriendo una terminal en: D:\Proyect_Transport_Front\backend.
+Paso	                                    Comando                         	Descripción
+Crear Entorno	                python -m venv venv	                             Crea el entorno virtual.
+Activar	                        .\venv\Scripts\activate                        	Activa el entorno en Windows.
+Actualizar Pip	            python -m pip install --upgrade pip	               Asegura que el instalador esté al día.
+Instalar Dependencias	        pip install -r requirements.txt             	Instala todas las librerías del proyecto.
+Instalar SDK Gemini         	pip install google-genai	                     Instala la librería específica que te faltaba.
+Ejecutar API              uvicorn main:app --reload	                        Inicia el servidor del backend.
+________________________________________
+2. Configuración del Frontend (Angular)
+Ubícate en la carpeta del frontend (según tu imagen, parece ser fleetmind-fronted o frontend).
+Paso	                              Comando	                                           Descripción
+Instalar Node Modules	        npm install	                         Descarga todas las librerías necesarias.
+Reparar Builder	         npm install --save-dev @angular/build	         Arregla el error específico que tenías.
+Instalar CLI (opcional)	    npm install -g @angular/cli	                Instala Angular de forma global si ng falla.
+Ejecutar Proyecto	    ng serve -o	                                        Compila y abre la web en tu navegador.
+________________________________________
+3. Resumen de flujo de trabajo diario
+Cada vez que vuelvas a trabajar en el proyecto, solo necesitas hacer esto:
+Para el Backend:
+1.	cd backend
+2.	.\venv\Scripts\activate
+3.	uvicorn main:app --reload
+Para el Frontend:
+1.	cd fleetmind-fronted (o tu carpeta de Angular)
+2.	ng serve -o
+________________________________________
+Solución a errores comunes en Windows:
+•	Si ng no se reconoce: Usa npx ng serve -o.
+•	Si el script de activación está bloqueado: Ejecuta esto una sola vez como administrador en PowerShell:
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
