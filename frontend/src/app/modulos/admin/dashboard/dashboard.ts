@@ -1,35 +1,32 @@
 import { Component, OnInit, AfterViewInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { FlotaService } from '../../services/flota';
+import { FlotaService } from '../../../services/flota';
 import * as L from 'leaflet';
 import 'leaflet-routing-machine';
 
 @Component({
-  selector: 'app-admin',
+  selector: 'app-dashboard-admin',
   standalone: true,
   imports: [CommonModule],
-  templateUrl: './admin.html'
+  templateUrl: './dashboard.html',
+  styleUrl: './dashboard.css'
 })
-export class AdminComponent implements OnInit, AfterViewInit {
-  // Datos
+export class DashboardAdminComponent implements OnInit, AfterViewInit {
   flota: any[] = [];
   incidentes: any[] = [];
   alertasActivas: any[] = [];
   usuarioActual: any = null;
 
-  // KPIs Dashboard
   conPeligro: number = 0;
   conAnomalia: number = 0;
 
   private flotaService = inject(FlotaService);
   private router = inject(Router);
-  
-  // Mapa
+
   private map!: L.Map;
   private markers: { [id: string]: L.Marker } = {};
   private routes: { [id: string]: any } = {};
-  private contadorAlertas = 0;
 
   private customIcon = L.icon({
     iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -53,18 +50,20 @@ export class AdminComponent implements OnInit, AfterViewInit {
   }
 
   ngAfterViewInit() {
-    this.iniciarMapa();
+    setTimeout(() => this.iniciarMapa(), 200);
   }
 
   iniciarMapa() {
+    const el = document.getElementById('mapa-admin');
+    if (!el) return;
     this.map = L.map('mapa-admin').setView([-8.1159, -79.0299], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
     }).addTo(this.map);
+    setTimeout(() => this.map.invalidateSize(), 300);
   }
 
   obtenerDatos() {
-    // 1. Telemetría y Mapa
     this.flotaService.getFlota().subscribe({
       next: (res) => {
         this.flota = res.data.map((c: any) => {
@@ -77,7 +76,6 @@ export class AdminComponent implements OnInit, AfterViewInit {
       }
     });
 
-    // 2. Incidentes Críticos
     this.flotaService.getIncidentes().subscribe({
       next: (res) => this.incidentes = res.data
     });
@@ -102,40 +100,34 @@ export class AdminComponent implements OnInit, AfterViewInit {
 
   actualizarRuta(id: string, origen: L.LatLng, destino: L.LatLng) {
     if (this.routes[id]) this.map.removeControl(this.routes[id]);
-    
-    const colores: any = { 
-      'CAMION-001': '#3498db', 
-      'CAMION-002': '#e74c3c', 
-      'CAMION-003': '#f1c40f', 
-      'CAMION-004': '#2ecc71', 
-      'CAMION-005': '#9b59b6' 
+
+    const colores: any = {
+      'CAMION-001': '#3498db',
+      'CAMION-002': '#e74c3c',
+      'CAMION-003': '#f1c40f',
+      'CAMION-004': '#2ecc71',
+      'CAMION-005': '#9b59b6'
     };
-    
-    const planSinMarcadores = L.Routing.plan([origen, destino], { 
-      createMarker: () => null as any 
+
+    const planSinMarcadores = L.Routing.plan([origen, destino], {
+      createMarker: () => null as any
     });
 
     this.routes[id] = L.Routing.control({
-      plan: planSinMarcadores, 
-      show: false, 
-      addWaypoints: false, 
-      fitSelectedRoutes: false, 
+      plan: planSinMarcadores,
+      show: false,
+      addWaypoints: false,
+      fitSelectedRoutes: false,
       routeWhileDragging: false,
-      // AQUÍ ESTÁ LA CORRECCIÓN: Añadimos las propiedades obligatorias
-      lineOptions: { 
-        styles: [{ color: colores[id] || '#333', opacity: 0.7, weight: 5 }], 
-        extendToWaypoints: true, 
-        missingRouteTolerance: 0 
+      lineOptions: {
+        styles: [{ color: colores[id] || '#333', opacity: 0.7, weight: 5 }],
+        extendToWaypoints: true,
+        missingRouteTolerance: 0
       }
     }).addTo(this.map);
   }
 
   cerrarAlerta(id: number) {
     this.alertasActivas = this.alertasActivas.filter(a => a.id !== id);
-  }
-
-  cerrarSesion() {
-    localStorage.removeItem('fleetmind_user');
-    this.router.navigate(['/login']);
   }
 }

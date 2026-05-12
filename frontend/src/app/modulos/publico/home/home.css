@@ -1,0 +1,190 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 18px; }
+body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; line-height: 1.6; }
+
+.home {
+  min-height: 100vh;
+  background: #f0f4f8;
+  color: #1a1a2e;
+}
+
+/* HERO */
+.hero {
+  background: linear-gradient(135deg, #1a5276 0%, #2471a3 40%, #2980b9 70%, #3498db 100%);
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: '';
+  position: absolute;
+  bottom: -2px; left: 0; right: 0;
+  height: 80px;
+  background: #f0f4f8;
+  clip-path: ellipse(55% 100% at 50% 100%);
+}
+.hero-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 2rem 2rem 6rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.15;
+  margin-bottom: 1.2rem;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+.hero-subtitle {
+  font-size: 1.3rem;
+  color: rgba(255,255,255,0.9);
+  max-width: 720px;
+  margin-bottom: 2.2rem;
+  line-height: 1.7;
+}
+.hero-actions { display: flex; gap: 1.2rem; flex-wrap: wrap; justify-content: center; }
+
+/* BUTTONS */
+.btn {
+  display: inline-block;
+  padding: 0.9rem 2.2rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+.btn--primary {
+  background: #3498db;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(52,152,219,0.4);
+}
+.btn--primary:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(52,152,219,0.5); }
+.btn--outline {
+  background: transparent;
+  color: #fff;
+  border-color: rgba(255,255,255,0.7);
+}
+.btn--outline:hover { background: rgba(255,255,255,0.12); border-color: #fff; }
+.btn--large { padding: 1.1rem 3rem; font-size: 1.4rem; }
+
+/* FEATURES */
+.features {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 5rem 2rem;
+}
+.section-title {
+  text-align: center;
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #1a5276;
+  margin-bottom: 3.5rem;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+}
+.feature-card {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+  transition: all 0.3s;
+  border: 1px solid #e8edf0;
+}
+.feature-card:hover { transform: translateY(-5px); box-shadow: 0 12px 30px rgba(0,0,0,0.1); }
+.feature-icon { font-size: 2.8rem; margin-bottom: 1rem; }
+.feature-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #1a5276;
+  margin-bottom: 0.7rem;
+}
+.feature-desc {
+  font-size: 1rem;
+  color: #3d5167;
+  line-height: 1.7;
+}
+
+/* STATS */
+.stats {
+  background: linear-gradient(135deg, #1a5276, #2471a3);
+  padding: 4rem 2rem;
+}
+.stats-grid {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  text-align: center;
+}
+.stat-item { display: flex; flex-direction: column; gap: 0.4rem; }
+.stat-number {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #fff;
+}
+.stat-label {
+  font-size: 1.1rem;
+  color: rgba(255,255,255,0.85);
+  font-weight: 500;
+}
+
+/* CTA */
+.cta {
+  text-align: center;
+  padding: 5rem 2rem;
+  background: #fff;
+}
+.cta-title {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #1a5276;
+  margin-bottom: 1rem;
+}
+.cta-text {
+  font-size: 1.2rem;
+  color: #3d5167;
+  margin-bottom: 2rem;
+}
+
+/* FOOTER */
+.footer {
+  background: #1a1a2e;
+  color: rgba(255,255,255,0.7);
+  text-align: center;
+  padding: 2rem;
+  font-size: 1rem;
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .hero-title { font-size: 2.6rem; }
+}
+@media (max-width: 600px) {
+  .features-grid { grid-template-columns: 1fr; }
+  .stats-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .hero-title { font-size: 2rem; }
+  .hero-subtitle { font-size: 1.1rem; }
+  .hero-content { padding: 2rem 1.2rem 5rem; }
+  .section-title { font-size: 1.8rem; }
+  .btn { padding: 0.8rem 1.5rem; font-size: 1.05rem; }
+  .hero-actions { flex-direction: column; align-items: stretch; }
+}

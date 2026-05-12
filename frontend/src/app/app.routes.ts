@@ -1,12 +1,33 @@
 import { Routes } from '@angular/router';
-import { LoginComponent } from './components/login/login';
-import { AdminComponent } from './components/admin/admin';
-import { ConductorComponent } from './components/conductor/conductor';
+import { PublicoLayout } from './layouts/publico/publico';
+import { HomeComponent } from './modulos/publico/home/home';
+import { LoginComponent } from './modulos/publico/login/login';
+import { RegisterComponent } from './modulos/publico/register/register';
+import { AdminLayout } from './layouts/admin/admin';
+import { DashboardAdminComponent } from './modulos/admin/dashboard/dashboard';
+import { UnidadesComponent } from './modulos/admin/unidades/unidades';
+import { ConductorComponent } from './layouts/conductor/conductor';
 
 export const routes: Routes = [
-  { path: '', redirectTo: 'login', pathMatch: 'full' },
-  { path: 'login', component: LoginComponent },
-  { path: 'admin', component: AdminComponent },
+  { path: '', redirectTo: 'home', pathMatch: 'full' },
+  {
+    path: '',
+    component: PublicoLayout,
+    children: [
+      { path: 'home', component: HomeComponent },
+      { path: 'login', component: LoginComponent },
+      { path: 'register', component: RegisterComponent }
+    ]
+  },
+  {
+    path: 'admin',
+    component: AdminLayout,
+    children: [
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+      { path: 'dashboard', component: DashboardAdminComponent },
+      { path: 'unidades', component: UnidadesComponent }
+    ]
+  },
   { path: 'conductor', component: ConductorComponent },
-  { path: '**', redirectTo: 'login' }
+  { path: '**', redirectTo: 'home' }
 ];
