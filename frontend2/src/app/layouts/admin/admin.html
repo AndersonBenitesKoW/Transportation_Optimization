@@ -1,0 +1,30 @@
+<div class="admin-layout">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2 class="sidebar-logo">FleetMind AI</h2>
+      <p class="sidebar-role">Panel Administrativo</p>
+    </div>
+    <nav class="sidebar-nav">
+      <a routerLink="/admin/dashboard" class="sidebar-link" routerLinkActive="sidebar-link--active" [routerLinkActiveOptions]="{exact: true}">
+        <span class="sidebar-icon">📊</span> Dashboard
+      </a>
+      <a routerLink="/admin/unidades" class="sidebar-link" routerLinkActive="sidebar-link--active">
+        <span class="sidebar-icon">🚛</span> Unidades
+      </a>
+      <a routerLink="/admin/conductores" class="sidebar-link" routerLinkActive="sidebar-link--active">
+        <span class="sidebar-icon">👨‍✈️</span> Conductores
+      </a>
+      <a routerLink="/admin/alertas" class="sidebar-link" routerLinkActive="sidebar-link--active">
+        <span class="sidebar-icon">🔔</span> Alertas
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button (click)="cerrarSesion()" class="sidebar-logout">
+        <span class="sidebar-icon">👤</span> Cerrar Sesión
+      </button>
+    </div>
+  </aside>
+  <main class="admin-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

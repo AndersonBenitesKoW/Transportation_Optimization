@@ -4,9 +4,15 @@ from pydantic import BaseModel
 from database import db_manager
 import joblib
 import pandas as pd
+<<<<<<< HEAD
 from google import genai
 import warnings
 from datetime import datetime
+=======
+import google.generativeai as genai
+import warnings
+from datetime import datetime, timedelta
+>>>>>>> origin/main
 from routing import routing_engine # <-- Importamos el motor OSRM
 import json
 
@@ -26,7 +32,11 @@ db = db_manager.get_db()
 
 # --- CONFIGURACIÓN DE IA GENERATIVA ---
 GOOGLE_API_KEY = "AIzaSyCWykOfNzb50jHD8I1M85wRCNhRRipiHDw" # ADVERTENCIA: Por seguridad, rota esta clave al terminar tu proyecto
+<<<<<<< HEAD
 client = genai.Client(api_key=GOOGLE_API_KEY)
+=======
+genai.configure(api_key=GOOGLE_API_KEY)
+>>>>>>> origin/main
 
 # --- CARGA DE MODELOS LOCALES ---
 try:
@@ -67,6 +77,10 @@ def obtener_flota():
             if 'ultima_actualizacion' in datos_camion:
                 datos_camion['ultima_actualizacion'] = datos_camion['ultima_actualizacion'].isoformat()
             
+<<<<<<< HEAD
+=======
+            # PREDICCIÓN DE FALLAS
+>>>>>>> origin/main
             if modelo_fallas:
                 input_fallas = pd.DataFrame([{
                     "kilometraje": datos_camion.get("kilometraje", 0),
@@ -75,8 +89,38 @@ def obtener_flota():
                     "temperatura_motor": datos_camion.get("temperatura_motor", 0)
                 }])
                 pred = modelo_fallas.predict(input_fallas)[0]
+<<<<<<< HEAD
                 datos_camion["alerta_predictiva"] = "⚠️ Peligro de Falla" if pred == 1 else "✅ Operación Segura"
 
+=======
+                prob = modelo_fallas.predict_proba(input_fallas)[0]
+                probabilidad = float(prob[1]) if pred == 1 else float(prob[0])
+                
+                resultado = "Peligro de Falla" if pred == 1 else "Operación Segura"
+                datos_camion["alerta_predictiva"] = f"⚠️ {resultado}" if pred == 1 else f"✅ {resultado}"
+                
+                # GUARDAR PREDICCIÓN EN FIREBASE
+                prediccion_doc = {
+                    "id_vehiculo": datos_camion.get("id_camion"),
+                    "tipo_prediccion": "Falla Mecánica",
+                    "resultado": resultado,
+                    "probabilidad": probabilidad,
+                    "confianza": "Alta" if probabilidad > 0.8 else "Media" if probabilidad > 0.5 else "Baja",
+                    "datos_entrada": {
+                        "kilometraje": datos_camion.get("kilometraje", 0),
+                        "edad_motor_meses": datos_camion.get("edad_motor_meses", 0),
+                        "horas_conduccion": datos_camion.get("horas_conduccion", 0),
+                        "temperatura_motor": datos_camion.get("temperatura_motor", 0)
+                    },
+                    "recomendacion": "Programar mantenimiento preventivo urgente" if pred == 1 else "Continuar operación normal",
+                    "fecha_prediccion": datetime.now(),
+                    "modelo_usado": "modelo_fallas.joblib",
+                    "version_modelo": "1.0"
+                }
+                db.collection('predicciones').add(prediccion_doc)
+
+            # DETECCIÓN DE ANOMALÍAS
+>>>>>>> origin/main
             if modelo_anomalias:
                 consumo_minuto = datos_camion.get("consumo_instante", 0) 
                 input_anomalias = pd.DataFrame([{
@@ -85,6 +129,28 @@ def obtener_flota():
                 }])
                 es_anomalo = modelo_anomalias.predict(input_anomalias)[0]
                 datos_camion["anomalia_combustible"] = True if es_anomalo == -1 else False
+<<<<<<< HEAD
+=======
+                
+                # GUARDAR PREDICCIÓN DE ANOMALÍA
+                if es_anomalo == -1:
+                    prediccion_anomalia = {
+                        "id_vehiculo": datos_camion.get("id_camion"),
+                        "tipo_prediccion": "Anomalía Combustible",
+                        "resultado": "Anomalía Detectada",
+                        "probabilidad": 0.95,
+                        "confianza": "Muy Alta",
+                        "datos_entrada": {
+                            "consumo_por_minuto": consumo_minuto,
+                            "velocidad": 45.0
+                        },
+                        "recomendacion": "Inspeccionar tanque de combustible. Posible fuga o robo.",
+                        "fecha_prediccion": datetime.now(),
+                        "modelo_usado": "modelo_anomalias.joblib",
+                        "version_modelo": "1.0"
+                    }
+                    db.collection('predicciones').add(prediccion_anomalia)
+>>>>>>> origin/main
             
             flota.append(datos_camion)
         return {"status": "success", "data": flota}
@@ -136,9 +202,14 @@ async def procesar_chat(req: MensajeChat):
             Responde ÚNICAMENTE en JSON: {{"quiere_ir": true/false, "destino": "nombre en minusculas" o null}}
             """
             
+<<<<<<< HEAD
             resp_intencion = client.models.generate_content(
                 model="gemini-3-flash-preview", contents=prompt_intencion
             ).text
+=======
+            model = genai.GenerativeModel('gemini-pro')
+            resp_intencion = model.generate_content(prompt_intencion).text
+>>>>>>> origin/main
             
             try:
                 # Limpiamos el texto por si Gemini añade marcadores de bloque de código
@@ -206,10 +277,15 @@ async def procesar_chat(req: MensajeChat):
             system_prompt = "Eres FleetMind AI, analista logístico. No uses Markdown."
 
         # --- 3. RESPUESTA FINAL ---
+<<<<<<< HEAD
         response = client.models.generate_content(
             model="gemini-3-flash-preview", 
             contents=f"{system_prompt}\n\nPregunta: {req.mensaje}"
         )
+=======
+        model = genai.GenerativeModel('gemini-pro')
+        response = model.generate_content(f"{system_prompt}\n\nPregunta: {req.mensaje}")
+>>>>>>> origin/main
         
         # Guardamos en base de datos SOLO si la IA aprobó la viabilidad
         if actualizacion_db:
@@ -221,4 +297,471 @@ async def procesar_chat(req: MensajeChat):
     except Exception as e:
         print(f"❌ Error Chatbot: {e}")
         return {"respuesta": "Error de conexión con IA."}
+<<<<<<< HEAD
     
+=======
+    
+
+# ============================================================================
+# ENDPOINTS CRUD - SEMANA 1
+# ============================================================================
+
+# --- MODELOS PYDANTIC PARA VALIDACIÓN ---
+class VehiculoCreate(BaseModel):
+    id_vehiculo: str
+    placa: str
+    marca: str
+    modelo: str
+    anio: int
+    capacidad_tanque_L: float
+    capacidad_carga_ton: float
+    kilometraje_actual: float
+    edad_motor_meses: int
+    estado: str
+    conductor_asignado: str
+
+class VehiculoUpdate(BaseModel):
+    placa: str | None = None
+    marca: str | None = None
+    modelo: str | None = None
+    anio: int | None = None
+    capacidad_tanque_L: float | None = None
+    capacidad_carga_ton: float | None = None
+    kilometraje_actual: float | None = None
+    edad_motor_meses: int | None = None
+    estado: str | None = None
+    conductor_asignado: str | None = None
+
+class ConductorCreate(BaseModel):
+    id_conductor: str
+    nombre: str
+    licencia: str
+    telefono: str
+    email: str
+    experiencia_anios: int
+    calificacion: float
+
+class ConductorUpdate(BaseModel):
+    nombre: str | None = None
+    licencia: str | None = None
+    telefono: str | None = None
+    email: str | None = None
+    experiencia_anios: int | None = None
+    calificacion: float | None = None
+    estado: str | None = None
+
+# ============================================================================
+# CRUD VEHÍCULOS
+# ============================================================================
+
+@app.get("/api/vehiculos")
+def listar_vehiculos():
+    """Obtener todos los vehículos"""
+    try:
+        vehiculos_ref = db.collection('vehiculos')
+        docs = vehiculos_ref.stream()
+        
+        vehiculos = []
+        for doc in docs:
+            vehiculo = doc.to_dict()
+            vehiculo['id'] = doc.id
+            
+            # Convertir fechas a ISO format
+            if 'fecha_adquisicion' in vehiculo:
+                vehiculo['fecha_adquisicion'] = vehiculo['fecha_adquisicion'].isoformat()
+            if 'ultimo_mantenimiento' in vehiculo:
+                vehiculo['ultimo_mantenimiento'] = vehiculo['ultimo_mantenimiento'].isoformat()
+            
+            vehiculos.append(vehiculo)
+        
+        return {"status": "success", "data": vehiculos}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/vehiculos/{id_vehiculo}")
+def obtener_vehiculo(id_vehiculo: str):
+    """Obtener un vehículo específico"""
+    try:
+        doc_ref = db.collection('vehiculos').document(id_vehiculo)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+        
+        vehiculo = doc.to_dict()
+        vehiculo['id'] = doc.id
+        
+        # Convertir fechas
+        if 'fecha_adquisicion' in vehiculo:
+            vehiculo['fecha_adquisicion'] = vehiculo['fecha_adquisicion'].isoformat()
+        if 'ultimo_mantenimiento' in vehiculo:
+            vehiculo['ultimo_mantenimiento'] = vehiculo['ultimo_mantenimiento'].isoformat()
+        
+        return {"status": "success", "data": vehiculo}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/vehiculos")
+def crear_vehiculo(vehiculo: VehiculoCreate):
+    """Crear un nuevo vehículo"""
+    try:
+        # Verificar si ya existe
+        doc_ref = db.collection('vehiculos').document(vehiculo.id_vehiculo)
+        if doc_ref.get().exists:
+            raise HTTPException(status_code=400, detail="El vehículo ya existe")
+        
+        # Crear documento
+        vehiculo_data = vehiculo.model_dump()
+        vehiculo_data['fecha_adquisicion'] = datetime.now()
+        vehiculo_data['ultimo_mantenimiento'] = datetime.now()
+        vehiculo_data['proximo_mantenimiento_km'] = vehiculo.kilometraje_actual + 5000
+        
+        doc_ref.set(vehiculo_data)
+        
+        return {
+            "status": "success",
+            "mensaje": f"Vehículo {vehiculo.id_vehiculo} creado exitosamente",
+            "data": {"id": vehiculo.id_vehiculo}
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/vehiculos/{id_vehiculo}")
+def actualizar_vehiculo(id_vehiculo: str, vehiculo: VehiculoUpdate):
+    """Actualizar un vehículo existente"""
+    try:
+        doc_ref = db.collection('vehiculos').document(id_vehiculo)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+        
+        # Actualizar solo campos proporcionados
+        update_data = {k: v for k, v in vehiculo.model_dump().items() if v is not None}
+        
+        if update_data:
+            doc_ref.update(update_data)
+        
+        return {
+            "status": "success",
+            "mensaje": f"Vehículo {id_vehiculo} actualizado exitosamente"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/vehiculos/{id_vehiculo}")
+def eliminar_vehiculo(id_vehiculo: str):
+    """Eliminar un vehículo"""
+    try:
+        doc_ref = db.collection('vehiculos').document(id_vehiculo)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+        
+        doc_ref.delete()
+        
+        return {
+            "status": "success",
+            "mensaje": f"Vehículo {id_vehiculo} eliminado exitosamente"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# CRUD CONDUCTORES
+# ============================================================================
+
+@app.get("/api/conductores")
+def listar_conductores():
+    """Obtener todos los conductores"""
+    try:
+        conductores_ref = db.collection('conductores')
+        docs = conductores_ref.stream()
+        
+        conductores = []
+        for doc in docs:
+            conductor = doc.to_dict()
+            conductor['id'] = doc.id
+            
+            # Convertir fechas
+            if 'fecha_contratacion' in conductor:
+                conductor['fecha_contratacion'] = conductor['fecha_contratacion'].isoformat()
+            
+            conductores.append(conductor)
+        
+        return {"status": "success", "data": conductores}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/conductores/{id_conductor}")
+def obtener_conductor(id_conductor: str):
+    """Obtener un conductor específico"""
+    try:
+        doc_ref = db.collection('conductores').document(id_conductor)
+        doc = doc_ref.get()
+        
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail="Conductor no encontrado")
+        
+        conductor = doc.to_dict()
+        conductor['id'] = doc.id
+        
+        # Convertir fechas
+        if 'fecha_contratacion' in conductor:
+            conductor['fecha_contratacion'] = conductor['fecha_contratacion'].isoformat()
+        
+        return {"status": "success", "data": conductor}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/conductores")
+def crear_conductor(conductor: ConductorCreate):
+    """Crear un nuevo conductor"""
+    try:
+        # Verificar si ya existe
+        doc_ref = db.collection('conductores').document(conductor.id_conductor)
+        if doc_ref.get().exists:
+            raise HTTPException(status_code=400, detail="El conductor ya existe")
+        
+        # Crear documento
+        conductor_data = conductor.model_dump()
+        conductor_data['fecha_contratacion'] = datetime.now()
+        conductor_data['estado'] = "Activo"
+        
+        doc_ref.set(conductor_data)
+        
+        return {
+            "status": "success",
+            "mensaje": f"Conductor {conductor.id_conductor} creado exitosamente",
+            "data": {"id": conductor.id_conductor}
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/conductores/{id_conductor}")
+def actualizar_conductor(id_conductor: str, conductor: ConductorUpdate):
+    """Actualizar un conductor existente"""
+    try:
+        doc_ref = db.collection('conductores').document(id_conductor)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Conductor no encontrado")
+        
+        # Actualizar solo campos proporcionados
+        update_data = {k: v for k, v in conductor.model_dump().items() if v is not None}
+        
+        if update_data:
+            doc_ref.update(update_data)
+        
+        return {
+            "status": "success",
+            "mensaje": f"Conductor {id_conductor} actualizado exitosamente"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/conductores/{id_conductor}")
+def eliminar_conductor(id_conductor: str):
+    """Eliminar un conductor"""
+    try:
+        doc_ref = db.collection('conductores').document(id_conductor)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Conductor no encontrado")
+        
+        doc_ref.delete()
+        
+        return {
+            "status": "success",
+            "mensaje": f"Conductor {id_conductor} eliminado exitosamente"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# ENDPOINTS SEMANA 2 - PREDICCIONES, ALERTAS Y KPIS
+# ============================================================================
+
+# --- PREDICCIONES ---
+@app.get("/api/predicciones")
+def listar_predicciones():
+    """Obtener todas las predicciones recientes"""
+    try:
+        predicciones_ref = db.collection('predicciones').order_by('fecha_prediccion', direction='DESCENDING').limit(50)
+        docs = predicciones_ref.stream()
+        
+        predicciones = []
+        for doc in docs:
+            pred = doc.to_dict()
+            pred['id'] = doc.id
+            if 'fecha_prediccion' in pred:
+                pred['fecha_prediccion'] = pred['fecha_prediccion'].isoformat()
+            predicciones.append(pred)
+        
+        return {"status": "success", "data": predicciones}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/predicciones/{id_vehiculo}")
+def obtener_predicciones_vehiculo(id_vehiculo: str):
+    """Obtener predicciones de un vehículo específico"""
+    try:
+        predicciones_ref = db.collection('predicciones').where('id_vehiculo', '==', id_vehiculo).order_by('fecha_prediccion', direction='DESCENDING').limit(20)
+        docs = predicciones_ref.stream()
+        
+        predicciones = []
+        for doc in docs:
+            pred = doc.to_dict()
+            pred['id'] = doc.id
+            if 'fecha_prediccion' in pred:
+                pred['fecha_prediccion'] = pred['fecha_prediccion'].isoformat()
+            predicciones.append(pred)
+        
+        return {"status": "success", "data": predicciones}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- ALERTAS ---
+@app.get("/api/alertas")
+def listar_alertas(estado: str = None):
+    """Obtener alertas, opcionalmente filtradas por estado"""
+    try:
+        alertas_ref = db.collection('alertas')
+        
+        if estado:
+            alertas_ref = alertas_ref.where('estado', '==', estado)
+        
+        alertas_ref = alertas_ref.order_by('fecha_creacion', direction='DESCENDING').limit(50)
+        docs = alertas_ref.stream()
+        
+        alertas = []
+        for doc in docs:
+            alerta = doc.to_dict()
+            alerta['id'] = doc.id
+            
+            # Convertir fechas
+            if 'fecha_creacion' in alerta:
+                alerta['fecha_creacion'] = alerta['fecha_creacion'].isoformat()
+            if 'fecha_limite' in alerta:
+                alerta['fecha_limite'] = alerta['fecha_limite'].isoformat()
+            if 'fecha_resolucion' in alerta:
+                alerta['fecha_resolucion'] = alerta['fecha_resolucion'].isoformat()
+            
+            alertas.append(alerta)
+        
+        return {"status": "success", "data": alertas}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/alertas/{id_alerta}")
+def actualizar_alerta(id_alerta: str, estado: str = None, notas: str = None):
+    """Marcar una alerta como resuelta"""
+    try:
+        doc_ref = db.collection('alertas').document(id_alerta)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Alerta no encontrada")
+        
+        update_data = {}
+        if estado:
+            update_data['estado'] = estado
+        if estado == 'Resuelta':
+            update_data['fecha_resolucion'] = datetime.now()
+            update_data['requiere_accion'] = False
+        if notas:
+            update_data['notas_resolucion'] = notas
+        
+        if update_data:
+            doc_ref.update(update_data)
+        
+        return {"status": "success", "mensaje": f"Alerta {id_alerta} actualizada"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# --- KPIS ---
+@app.get("/api/kpis")
+def obtener_kpis():
+    """Obtener métricas y KPIs del sistema"""
+    try:
+        # 1. Total vehículos activos
+        vehiculos_ref = db.collection('vehiculos')
+        total_vehiculos = len(list(vehiculos_ref.stream()))
+        
+        vehiculos_activos = len(list(vehiculos_ref.where('estado', 'in', ['En ruta', 'Disponible']).stream()))
+        
+        # 2. Incidentes últimos 7 días
+        fecha_limite = datetime.now() - timedelta(days=7)
+        incidentes_ref = db.collection('incidentes_flota').where('fecha_hora', '>=', fecha_limite)
+        incidentes_recientes = len(list(incidentes_ref.stream()))
+        
+        # 3. Alertas pendientes
+        alertas_ref = db.collection('alertas').where('estado', '==', 'Pendiente')
+        alertas_pendientes = len(list(alertas_ref.stream()))
+        
+        # 4. Promedio consumo real vs estimado (últimos 10 viajes)
+        viajes_ref = db.collection('historial_viajes').order_by('fecha_viaje', direction='DESCENDING').limit(10)
+        viajes = list(viajes_ref.stream())
+        
+        if viajes:
+            total_consumo_real = 0
+            total_distancia = 0
+            for viaje_doc in viajes:
+                viaje = viaje_doc.to_dict()
+                total_consumo_real += viaje.get('combustible_total_consumido_L', 0)
+                total_distancia += viaje.get('distancia_recorrida_km', 0)
+            
+            consumo_promedio_real = total_consumo_real / len(viajes) if len(viajes) > 0 else 0
+            consumo_promedio_estimado = (total_distancia * 0.35) / len(viajes) if len(viajes) > 0 else 0
+            eficiencia_operativa = (consumo_promedio_estimado / consumo_promedio_real * 100) if consumo_promedio_real > 0 else 100
+        else:
+            consumo_promedio_real = 0
+            consumo_promedio_estimado = 0
+            eficiencia_operativa = 100
+        
+        # 5. Vehículos con peligro de falla
+        telemetria_ref = db.collection('telemetria_flota')
+        telemetria_docs = telemetria_ref.stream()
+        
+        vehiculos_peligro = 0
+        vehiculos_anomalia = 0
+        
+        for doc in telemetria_docs:
+            datos = doc.to_dict()
+            # Detectar peligro mecánico
+            if datos.get('temperatura_motor', 0) >= 102 or datos.get('horas_conduccion', 0) >= 10:
+                vehiculos_peligro += 1
+            # Detectar anomalía de combustible
+            if datos.get('consumo_instante', 0) > 0.5:
+                vehiculos_anomalia += 1
+        
+        kpis = {
+            "total_vehiculos": total_vehiculos,
+            "vehiculos_activos": vehiculos_activos,
+            "vehiculos_peligro": vehiculos_peligro,
+            "vehiculos_anomalia": vehiculos_anomalia,
+            "incidentes_7_dias": incidentes_recientes,
+            "alertas_pendientes": alertas_pendientes,
+            "consumo_promedio_real_L": round(consumo_promedio_real, 2),
+            "consumo_promedio_estimado_L": round(consumo_promedio_estimado, 2),
+            "eficiencia_operativa_pct": round(eficiencia_operativa, 2),
+            "fecha_calculo": datetime.now().isoformat()
+        }
+        
+        return {"status": "success", "data": kpis}
+    except Exception as e:
+        print(f"Error calculando KPIs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+>>>>>>> origin/main

@@ -1,0 +1,165 @@
+<div class="conductores-page">
+  <header class="conductores-header">
+    <div>
+      <h1 class="conductores-title">👨‍✈️ Gestión de Conductores</h1>
+      <p class="conductores-subtitle">{{ conductores.length }} conductores registrados</p>
+    </div>
+    <button class="btn-conductores btn-conductores--primary" (click)="abrirNuevo()" [disabled]="cargando">
+      + Nuevo Conductor
+    </button>
+  </header>
+
+  <!-- Mensaje de error -->
+  <div *ngIf="error" class="alert alert-error">
+    {{ error }}
+  </div>
+
+  <!-- Loading spinner -->
+  <div *ngIf="cargando" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
+
+  <div class="conductores-filtro">
+    <label class="filtro-label">Filtrar por estado:</label>
+    <select [(ngModel)]="filtrarEstado" class="filtro-select">
+      <option value="Todos">Todos</option>
+      <option value="Activo">Activo</option>
+      <option value="Inactivo">Inactivo</option>
+      <option value="Vacaciones">Vacaciones</option>
+    </select>
+  </div>
+
+  <div class="conductores-table-wrapper">
+    <table class="conductores-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Licencia</th>
+          <th>Email</th>
+          <th>Teléfono</th>
+          <th>Experiencia</th>
+          <th>Calificación</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let c of filtrados">
+          <td class="td-id">{{ c.id_conductor }}</td>
+          <td><strong>{{ c.nombre }}</strong></td>
+          <td>{{ c.licencia }}</td>
+          <td>{{ c.email }}</td>
+          <td>{{ c.telefono }}</td>
+          <td>{{ c.experiencia_anios }} años</td>
+          <td>
+            <span class="calificacion">
+              {{ getEstrellas(c.calificacion) }} {{ c.calificacion }}
+            </span>
+          </td>
+          <td>
+            <span class="badge" [ngClass]="{
+              'badge--activo': c.estado === 'Activo',
+              'badge--inactivo': c.estado === 'Inactivo',
+              'badge--vacaciones': c.estado === 'Vacaciones'
+            }">{{ c.estado }}</span>
+          </td>
+          <td class="td-acciones">
+            <button class="btn-accion btn-accion--editar" (click)="abrirEditar(c)" title="Editar" [disabled]="cargando">✏️</button>
+            <button class="btn-accion btn-accion--eliminar" (click)="confirmarEliminar(c.id_conductor)" title="Eliminar" [disabled]="cargando">🗑️</button>
+          </td>
+        </tr>
+        <tr *ngIf="filtrados.length === 0 && !cargando">
+          <td colspan="9" class="td-vacio">No hay conductores con ese estado.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MODAL CREAR / EDITAR -->
+  <div class="modal-overlay" *ngIf="modalAbierto" (click)="cerrarModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">{{ editando ? 'Editar Conductor' : 'Nuevo Conductor' }}</h2>
+        <button class="modal-close" (click)="cerrarModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">ID del Conductor *</label>
+            <input class="form-input" type="text" [(ngModel)]="form.id_conductor" placeholder="Ej. C-006" [disabled]="editando" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre Completo *</label>
+            <input class="form-input" type="text" [(ngModel)]="form.nombre" placeholder="Ej. Juan Pérez" />
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Email *</label>
+            <input class="form-input" type="email" [(ngModel)]="form.email" placeholder="conductor@empresa.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono *</label>
+            <input class="form-input" type="tel" [(ngModel)]="form.telefono" placeholder="999888777" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Licencia *</label>
+            <select class="form-input" [(ngModel)]="form.licencia">
+              <option value="A3B">A3B - Camiones pesados</option>
+              <option value="A3C">A3C - Camiones articulados</option>
+              <option value="A2B">A2B - Camiones medianos</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Experiencia (años) *</label>
+            <input class="form-input" type="number" [(ngModel)]="form.experiencia_anios" min="0" max="50" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Calificación (1-5) *</label>
+            <input class="form-input" type="number" [(ngModel)]="form.calificacion" min="1" max="5" step="0.1" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Estado *</label>
+            <select class="form-input" [(ngModel)]="form.estado">
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
+              <option value="Vacaciones">Vacaciones</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-conductores btn-conductores--cancel" (click)="cerrarModal()" [disabled]="cargando">Cancelar</button>
+        <button class="btn-conductores btn-conductores--primary" (click)="guardar()" [disabled]="cargando">
+          {{ cargando ? 'Guardando...' : (editando ? 'Actualizar' : 'Guardar') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMAR ELIMINAR -->
+  <div class="modal-overlay" *ngIf="modalEliminar" (click)="cancelarEliminar()">
+    <div class="modal modal--sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">Confirmar Eliminación</h2>
+        <button class="modal-close" (click)="cancelarEliminar()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="eliminar-texto">¿Estás seguro de eliminar este conductor? Esta acción no se puede deshacer.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-conductores btn-conductores--cancel" (click)="cancelarEliminar()">Cancelar</button>
+        <button class="btn-conductores btn-conductores--danger" (click)="ejecutarEliminar()">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>

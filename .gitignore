@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# Firebase credentials (IMPORTANTE: NO subir credenciales)
+firebase_credentials.json
+*.json.backup
+
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Angular
+frontend/.angular/
+frontend/dist/
+frontend2/.angular/
+frontend2/dist/
+.angular/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Modelos entrenados (opcional, son grandes)
+# *.joblib
+
+# Archivos temporales
+*.tmp
+*.bak
