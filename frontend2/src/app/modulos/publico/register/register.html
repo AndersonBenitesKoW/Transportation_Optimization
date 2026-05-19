@@ -1,0 +1,135 @@
+<div class="register-page">
+  <div class="register-container">
+    <div class="register-info">
+      <a routerLink="/home" class="register-back">← Volver al inicio</a>
+      <div class="register-info-content">
+        <h1 class="register-info-title">Únete a FleetMind AI</h1>
+        <p class="register-info-text">
+          Optimiza tu flota con inteligencia artificial. Monitoreo en tiempo real,
+          predicción de fallas y detección de anomalías en un solo panel.
+        </p>
+        <ul class="register-benefits">
+          <li>🚛 Monitoreo GPS en vivo</li>
+          <li>🤖 Asistente con IA integrado</li>
+          <li>🛡️ Detección de robo de combustible</li>
+          <li>⚙️ Predicción de fallas mecánicas</li>
+          <li>📊 Dashboard estratégico</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="register-form-wrapper">
+      <div *ngIf="!registrado; else exito">
+        <h2 class="register-form-title">Crear Cuenta</h2>
+        <p class="register-form-subtitle">Completa tus datos para registrarte.</p>
+
+        <form (ngSubmit)="registrar()" class="register-form" autocomplete="off">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nombre" class="form-label">Nombre Completo</label>
+              <input
+                id="nombre"
+                type="text"
+                [(ngModel)]="formData.nombre"
+                name="nombre"
+                placeholder="Ej. Juan Pérez"
+                [class.is-valid]="getValido('nombre')"
+                [class.is-invalid]="getInvalido('nombre')"
+              />
+              <span class="form-error" *ngIf="getInvalido('nombre')">{{ errores['nombre'] }}</span>
+            </div>
+            <div class="form-group">
+              <label for="empresa" class="form-label">Empresa</label>
+              <input
+                id="empresa"
+                type="text"
+                [(ngModel)]="formData.empresa"
+                name="empresa"
+                placeholder="Ej. Transportes Rápidos S.A."
+                [class.is-valid]="getValido('empresa')"
+                [class.is-invalid]="getInvalido('empresa')"
+              />
+              <span class="form-error" *ngIf="getInvalido('empresa')">{{ errores['empresa'] }}</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="email" class="form-label">Correo Electrónico</label>
+            <input
+              id="email"
+              type="email"
+              [(ngModel)]="formData.email"
+              name="email"
+              placeholder="Ej. juan@empresa.com"
+              [class.is-valid]="getValido('email')"
+              [class.is-invalid]="getInvalido('email')"
+            />
+            <span class="form-error" *ngIf="getInvalido('email')">{{ errores['email'] }}</span>
+          </div>
+
+          <div class="form-group">
+            <label for="telefono" class="form-label">Teléfono</label>
+            <input
+              id="telefono"
+              type="tel"
+              [(ngModel)]="formData.telefono"
+              name="telefono"
+              placeholder="Ej. 987654321"
+              [class.is-valid]="getValido('telefono')"
+              [class.is-invalid]="getInvalido('telefono')"
+            />
+            <span class="form-error" *ngIf="getInvalido('telefono')">{{ errores['telefono'] }}</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="password" class="form-label">Contraseña</label>
+              <input
+                id="password"
+                type="password"
+                [(ngModel)]="formData.password"
+                name="password"
+                placeholder="Mínimo 6 caracteres"
+                [class.is-valid]="getValido('password')"
+                [class.is-invalid]="getInvalido('password')"
+              />
+              <span class="form-error" *ngIf="getInvalido('password')">{{ errores['password'] }}</span>
+            </div>
+            <div class="form-group">
+              <label for="confirmPassword" class="form-label">Confirmar Contraseña</label>
+              <input
+                id="confirmPassword"
+                type="password"
+                [(ngModel)]="formData.confirmPassword"
+                name="confirmPassword"
+                placeholder="Repite la contraseña"
+                [class.is-valid]="getValido('confirmPassword')"
+                [class.is-invalid]="getInvalido('confirmPassword')"
+              />
+              <span class="form-error" *ngIf="getInvalido('confirmPassword')">{{ errores['confirmPassword'] }}</span>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-register">Crear Cuenta</button>
+        </form>
+
+        <p class="register-login-link">
+          ¿Ya tienes cuenta?
+          <a routerLink="/login">Inicia sesión aquí</a>
+        </p>
+      </div>
+
+      <ng-template #exito>
+        <div class="register-exito">
+          <div class="exito-icon">✅</div>
+          <h2 class="exito-title">¡Registro Exitoso!</h2>
+          <p class="exito-text">
+            Hemos enviado un correo de confirmación a <strong>{{ formData.email }}</strong>.
+            Revisa tu bandeja de entrada para activar tu cuenta.
+          </p>
+          <a routerLink="/login" class="btn-register">Ir a Iniciar Sesión</a>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</div>

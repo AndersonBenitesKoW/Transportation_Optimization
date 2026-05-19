@@ -1,0 +1,170 @@
+<div class="unidades-page">
+  <header class="unidades-header">
+    <div>
+      <h1 class="unidades-title">Gestión de Unidades</h1>
+      <p class="unidades-subtitle">{{ unidades.length }} camiones registrados</p>
+    </div>
+    <button class="btn-unidades btn-unidades--primary" (click)="abrirNuevo()" [disabled]="cargando">+ Nueva Unidad</button>
+  </header>
+
+  <!-- Mensaje de error -->
+  <div *ngIf="error" class="alert alert-error">
+    {{ error }}
+  </div>
+
+  <!-- Loading spinner -->
+  <div *ngIf="cargando" class="loading-spinner">
+    <div class="spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
+
+  <div class="unidades-filtro">
+    <label class="filtro-label">Filtrar por estado:</label>
+    <select [(ngModel)]="filtrarEstado" class="filtro-select">
+      <option value="Todas">Todas</option>
+      <option value="En ruta">En ruta</option>
+      <option value="Disponible">Disponible</option>
+      <option value="Taller">Taller</option>
+      <option value="Inactivo">Inactivo</option>
+    </select>
+  </div>
+
+  <div class="unidades-table-wrapper">
+    <table class="unidades-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Placa</th>
+          <th>Marca/Modelo</th>
+          <th>Conductor</th>
+          <th>Tanque (L)</th>
+          <th>Kilometraje</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let u of filtradas">
+          <td class="td-id">{{ u.id_vehiculo }}</td>
+          <td><strong>{{ u.placa }}</strong></td>
+          <td>{{ u.marca }} {{ u.modelo }}</td>
+          <td>{{ getNombreConductor(u.conductor_asignado) }}</td>
+          <td>{{ u.capacidad_tanque_L }}L</td>
+          <td>{{ u.kilometraje_actual | number:'1.0-0' }} km</td>
+          <td>
+            <span class="badge" [ngClass]="{
+              'badge--ruta': u.estado === 'En ruta',
+              'badge--disponible': u.estado === 'Disponible',
+              'badge--taller': u.estado === 'Taller',
+              'badge--inactivo': u.estado === 'Inactivo'
+            }">{{ u.estado }}</span>
+          </td>
+          <td class="td-acciones">
+            <button class="btn-accion btn-accion--editar" (click)="abrirEditar(u)" title="Editar" [disabled]="cargando">✏️</button>
+            <button class="btn-accion btn-accion--eliminar" (click)="confirmarEliminar(u.id_vehiculo)" title="Eliminar" [disabled]="cargando">🗑️</button>
+          </td>
+        </tr>
+        <tr *ngIf="filtradas.length === 0 && !cargando">
+          <td colspan="8" class="td-vacio">No hay unidades con ese estado.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MODAL CREAR / EDITAR -->
+  <div class="modal-overlay" *ngIf="modalAbierto" (click)="cerrarModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">{{ editando ? 'Editar Unidad' : 'Nueva Unidad' }}</h2>
+        <button class="modal-close" (click)="cerrarModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">ID del Vehículo *</label>
+            <input class="form-input" type="text" [(ngModel)]="form.id_vehiculo" placeholder="Ej. CAMION-008" [disabled]="editando" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Placa *</label>
+            <input class="form-input" type="text" [(ngModel)]="form.placa" placeholder="Ej. ABC-123" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Marca *</label>
+            <input class="form-input" type="text" [(ngModel)]="form.marca" placeholder="Ej. Volvo" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Modelo *</label>
+            <input class="form-input" type="text" [(ngModel)]="form.modelo" placeholder="Ej. FH16" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Año *</label>
+            <input class="form-input" type="number" [(ngModel)]="form.anio" min="2000" max="2030" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Conductor Asignado *</label>
+            <select class="form-input" [(ngModel)]="form.conductor_asignado">
+              <option value="">Seleccionar conductor</option>
+              <option *ngFor="let c of conductores" [value]="c.id_conductor">{{ c.nombre }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Capacidad Tanque (L) *</label>
+            <input class="form-input" type="number" [(ngModel)]="form.capacidad_tanque_L" min="100" max="2000" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Capacidad Carga (ton) *</label>
+            <input class="form-input" type="number" [(ngModel)]="form.capacidad_carga_ton" min="5" max="50" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Kilometraje Actual *</label>
+            <input class="form-input" type="number" [(ngModel)]="form.kilometraje_actual" min="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Edad del Motor (meses) *</label>
+            <input class="form-input" type="number" [(ngModel)]="form.edad_motor_meses" min="0" max="240" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Estado *</label>
+          <select class="form-input" [(ngModel)]="form.estado">
+            <option value="En ruta">En ruta</option>
+            <option value="Disponible">Disponible</option>
+            <option value="Taller">Taller</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-unidades btn-unidades--cancel" (click)="cerrarModal()" [disabled]="cargando">Cancelar</button>
+        <button class="btn-unidades btn-unidades--primary" (click)="guardar()" [disabled]="cargando">
+          {{ cargando ? 'Guardando...' : (editando ? 'Actualizar' : 'Guardar') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL CONFIRMAR ELIMINAR -->
+  <div class="modal-overlay" *ngIf="modalEliminar" (click)="cancelarEliminar()">
+    <div class="modal modal--sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">Confirmar Eliminación</h2>
+        <button class="modal-close" (click)="cancelarEliminar()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="eliminar-texto">¿Estás seguro de eliminar esta unidad? Esta acción no se puede deshacer.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-unidades btn-unidades--cancel" (click)="cancelarEliminar()">Cancelar</button>
+        <button class="btn-unidades btn-unidades--danger" (click)="ejecutarEliminar()">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>

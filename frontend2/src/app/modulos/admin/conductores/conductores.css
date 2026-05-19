@@ -1,0 +1,362 @@
+.conductores-page {
+  padding: 2rem;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.conductores-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.conductores-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.conductores-subtitle {
+  color: #7f8c8d;
+  margin-top: 0.5rem;
+}
+
+.btn-conductores {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s;
+}
+
+.btn-conductores--primary {
+  background-color: #3498db;
+  color: white;
+}
+
+.btn-conductores--primary:hover:not(:disabled) {
+  background-color: #2980b9;
+}
+
+.btn-conductores--cancel {
+  background-color: #95a5a6;
+  color: white;
+}
+
+.btn-conductores--cancel:hover {
+  background-color: #7f8c8d;
+}
+
+.btn-conductores--danger {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.btn-conductores--danger:hover {
+  background-color: #c0392b;
+}
+
+.btn-conductores:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Filtros */
+.conductores-filtro {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.filtro-label {
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.filtro-select {
+  padding: 0.5rem 1rem;
+  border: 1px solid #bdc3c7;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+/* Tabla */
+.conductores-table-wrapper {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.conductores-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.conductores-table thead {
+  background-color: #34495e;
+  color: white;
+}
+
+.conductores-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.conductores-table tbody tr {
+  border-bottom: 1px solid #ecf0f1;
+  transition: background 0.2s;
+}
+
+.conductores-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.conductores-table td {
+  padding: 1rem;
+  color: #2c3e50;
+}
+
+.td-id {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #3498db;
+}
+
+.calificacion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.badge--activo {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge--inactivo {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.badge--vacaciones {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.td-acciones {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-accion {
+  padding: 0.5rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: transform 0.2s;
+}
+
+.btn-accion:hover:not(:disabled) {
+  transform: scale(1.1);
+}
+
+.btn-accion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-accion--editar {
+  background-color: #3498db;
+}
+
+.btn-accion--eliminar {
+  background-color: #e74c3c;
+}
+
+.td-vacio {
+  text-align: center;
+  padding: 3rem !important;
+  color: #95a5a6;
+  font-style: italic;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.modal--sm {
+  max-width: 400px;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #ecf0f1;
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 2rem;
+  cursor: pointer;
+  color: #95a5a6;
+  transition: color 0.3s;
+}
+
+.modal-close:hover {
+  color: #e74c3c;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.form-input {
+  padding: 0.75rem;
+  border: 1px solid #bdc3c7;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+.form-input:disabled {
+  background-color: #ecf0f1;
+  cursor: not-allowed;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid #ecf0f1;
+}
+
+.eliminar-texto {
+  text-align: center;
+  color: #2c3e50;
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+/* Loading y error */
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.alert-error {
+  padding: 1rem;
+  background-color: #fee;
+  color: #c33;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .conductores-table {
+    font-size: 0.875rem;
+  }
+  
+  .conductores-table th,
+  .conductores-table td {
+    padding: 0.75rem 0.5rem;
+  }
+}
