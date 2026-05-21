@@ -15,7 +15,7 @@ class RoutingEngine:
             coords_str = f"{origen_lng},{origen_lat};{destino_lng},{destino_lat}"
             url = f"{self.base_url}{coords_str}?overview=full&geometries=geojson"
             
-            response = requests.get(url)
+            response = requests.get(url, headers={"User-Agent": "FleetMindAI/1.0"})
             data = response.json()
 
             if data['code'] != 'Ok':

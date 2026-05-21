@@ -11,6 +11,9 @@ ENV/
 dist/
 build/
 
+# Environment variables (IMPORTANTE: NO subir keys)
+.env
+
 # Firebase credentials (IMPORTANTE: NO subir credenciales)
 firebase_credentials.json
 *.json.backup

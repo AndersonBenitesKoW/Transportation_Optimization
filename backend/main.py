@@ -1,15 +1,20 @@
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from database import db_manager
 import joblib
 import pandas as pd
-import google.generativeai as genai
+from openai import OpenAI
+from dotenv import load_dotenv
 import warnings
 from datetime import datetime, timedelta
-from routing import routing_engine # <-- Importamos el motor OSRM
+from routing import routing_engine
 import json
+import requests
+import time
 
+load_dotenv()
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 app = FastAPI(title="FleetMind AI API", description="Motor de Inteligencia Operativa")
@@ -24,9 +29,22 @@ app.add_middleware(
 
 db = db_manager.get_db()
 
-# --- CONFIGURACIÓN DE IA GENERATIVA ---
-GOOGLE_API_KEY = "AIzaSyCWykOfNzb50jHD8I1M85wRCNhRRipiHDw" # ADVERTENCIA: Por seguridad, rota esta clave al terminar tu proyecto
-genai.configure(api_key=GOOGLE_API_KEY)
+# --- CONFIGURACIÓN DE IA GENERATIVA (OpenRouter + DeepSeek) ---
+client = OpenAI(
+    base_url=os.getenv("OPENROUTER_BASE_URL"),
+    api_key=os.getenv("OPENROUTER_API_KEY"),
+)
+MODEL = os.getenv("OPENROUTER_MODEL")
+
+import traceback
+
+print("=" * 60)
+print("VERIFICACION DE CONFIGURACION OPENROUTER/DEEPSEEK")
+print(f"  OPENROUTER_BASE_URL:  {os.getenv('OPENROUTER_BASE_URL') or '⚠️ NO DEFINIDO'}")
+print(f"  OPENROUTER_API_KEY:   {('***' + os.getenv('OPENROUTER_API_KEY', '')[-8:]) if os.getenv('OPENROUTER_API_KEY') else '⚠️ NO DEFINIDO'}")
+print(f"  OPENROUTER_MODEL:     {MODEL or '⚠️ NO DEFINIDO'}")
+print(f"  client.base_url:      {client.base_url}")
+print("=" * 60)
 
 # --- CARGA DE MODELOS LOCALES ---
 try:
@@ -50,6 +68,51 @@ DESTINOS = {
     "parada sur": {"nombre": "Parada Sur", "lat": -8.1250, "lng": -79.0180},
     "taller sur": {"nombre": "Taller Sur", "lat": -8.1120, "lng": -79.0320}
 }
+
+_coordenadas_cache = {}
+
+def geocodificar_destino(nombre):
+    """Convierte un nombre de lugar en coordenadas (nombre, lat, lng) usando Nominatim."""
+    nombre_limpio = nombre.strip().lower()
+
+    if nombre_limpio in _coordenadas_cache:
+        print(f"   📦 Caché: {nombre_limpio} -> {_coordenadas_cache[nombre_limpio]}")
+        return _coordenadas_cache[nombre_limpio]
+
+    if nombre_limpio in DESTINOS:
+        d = DESTINOS[nombre_limpio]
+        resultado = (d["nombre"], d["lat"], d["lng"])
+        _coordenadas_cache[nombre_limpio] = resultado
+        return resultado
+
+    try:
+        url = "https://nominatim.openstreetmap.org/search"
+        params = {
+            "q": nombre,
+            "format": "json",
+            "limit": 1,
+            "countrycodes": "pe",
+            "accept-language": "es"
+        }
+        headers = {"User-Agent": "FleetMindAI/1.0"}
+        resp = requests.get(url, params=params, headers=headers, timeout=5)
+        data = resp.json()
+
+        if data and len(data) > 0:
+            lat = float(data[0]["lat"])
+            lng = float(data[0]["lon"])
+            nombre_encontrado = data[0].get("display_name", nombre)
+            resultado = (nombre_encontrado, lat, lng)
+            _coordenadas_cache[nombre_limpio] = resultado
+            print(f"   🌍 Nominatim: '{nombre}' -> {nombre_encontrado} ({lat}, {lng})")
+            time.sleep(1.1)
+            return resultado
+        else:
+            print(f"   ⚠️ Nominatim no encontró: '{nombre}'")
+            return None
+    except Exception as e:
+        print(f"   ❌ Error geocodificando '{nombre}': {e}")
+        return None
 
 @app.get("/")
 def read_root():
@@ -161,6 +224,10 @@ def obtener_incidentes():
 @app.post("/api/chat")
 async def procesar_chat(req: MensajeChat):
     try:
+        print(f"\n📨 CHAT RECIBIDO: rol={req.rol}, ref={req.referencia}, mensaje=\"{req.mensaje[:80]}...\"")
+        print(f"   MODEL configurado: {MODEL}")
+        print(f"   Base URL: {client.base_url}")
+        
         system_prompt = ""
         actualizacion_db = None
 
@@ -168,21 +235,36 @@ async def procesar_chat(req: MensajeChat):
             doc_ref = db.collection(u'telemetria_flota').document(req.referencia)
             doc = doc_ref.get()
             if not doc.exists:
+                print(f"   ⚠️ Documento {req.referencia} no encontrado en Firestore")
                 return {"respuesta": "No tengo conexión con tu telemetría."}
             
             data = doc.to_dict()
             
             # --- 1. IA DETECTA LA INTENCIÓN ---
-            lista_destinos = ', '.join(DESTINOS.keys())
             prompt_intencion = f"""
             El conductor dice: "{req.mensaje}".
-            ¿Quiere cambiar su ruta a un nuevo destino? 
-            Destinos válidos: {lista_destinos}.
-            Responde ÚNICAMENTE en JSON: {{"quiere_ir": true/false, "destino": "nombre en minusculas" o null}}
+            Determina si quiere cambiar su ruta hacia un nuevo destino.
+            Responde ÚNICAMENTE en JSON sin Markdown:
+            {{"quiere_ir": true/false, "destino": "nombre completo del lugar" o null}}
+            Si quiere ir a un lugar, escribe el nombre completo (ej: "Chao, Viru, La Libertad").
+            Si no menciona un lugar concreto, pon false y null.
             """
             
-            model = genai.GenerativeModel('gemini-pro')
-            resp_intencion = model.generate_content(prompt_intencion).text
+            print(f"   🔄 LLAMADA 1/2 a OpenRouter (detección de intención)...")
+            try:
+                resp = client.chat.completions.create(
+                    model=MODEL,
+                    messages=[
+                        {"role": "system", "content": "Responde UNICAMENTE en JSON valido, sin bloques de codigo ni markdown."},
+                        {"role": "user", "content": prompt_intencion}
+                    ]
+                )
+                resp_intencion = resp.choices[0].message.content
+                print(f"   ✅ Respuesta intención recibida: {resp_intencion[:100]}...")
+            except Exception as inner_e:
+                print(f"   ❌ ERROR en llamada 1/2: {inner_e}")
+                traceback.print_exc()
+                return {"respuesta": "Error al contactar la IA (intención). Revisa los logs del servidor."}
             
             try:
                 # Limpiamos el texto por si Gemini añade marcadores de bloque de código
@@ -192,51 +274,60 @@ async def procesar_chat(req: MensajeChat):
                 intencion = {"quiere_ir": False, "destino": None}
 
             # --- 2. EVALUACIÓN Y RUTEO ---
-            if intencion.get('quiere_ir') and intencion.get('destino') in DESTINOS:
-                destino_nuevo = DESTINOS[intencion['destino']]
-                
-                # Pedimos la ruta física a OSRM
-                puntos_ruta, dist_km = routing_engine.obtener_ruta_optima(
-                    data['ubicacion']['lat'], data['ubicacion']['lng'],
-                    destino_nuevo['lat'], destino_nuevo['lng']
-                )
+            if intencion.get('quiere_ir') and intencion.get('destino'):
+                destino_nombre_raw = intencion['destino']
+                print(f"   📍 Geocodificando destino: '{destino_nombre_raw}'...")
+                geo = geocodificar_destino(destino_nombre_raw)
 
-                if puntos_ruta:
-                    consumo_est = round(dist_km * 0.35, 2)
-                    combustible_ok = data['combustible_actual_L'] >= consumo_est
-                    motor_ok = data['estado_motor'] == 'Optimo'
-                    
-                    if not motor_ok:
-                        viabilidad = "RECHAZADA. Peligro de falla mecánica."
-                    elif not combustible_ok:
-                        viabilidad = f"RECHAZADA. Combustible insuficiente (necesita {consumo_est}L)."
-                    else:
-                        viabilidad = "APROBADA."
-                        
-                        # SOLUCIÓN: Convertimos la lista de listas en lista de diccionarios para que Firebase lo acepte
-                        puntos_firebase = [{"lat": p[0], "lng": p[1]} for p in puntos_ruta]
-                        
-                        actualizacion_db = {
-                            "puntos_ruta": puntos_firebase,
-                            "destino": destino_nuevo,
-                            "distancia_restante_km": dist_km,
-                            "mision": f"Ruta AI a {destino_nuevo['nombre']}",
-                            "ultima_actualizacion": datetime.now()
-                        }
-
-                    system_prompt = f"""
-                    Eres el asistente de {req.referencia}.
-                    Nuevo destino: {destino_nuevo['nombre']} a {dist_km} km.
-                    Consumo estimado: {consumo_est} L. Combustible actual: {data['combustible_actual_L']} L.
-                    Estado motor: {data['estado_motor']}.
-                    Resultado de evaluación: {viabilidad}
-                    REGLAS:
-                    1. Sé directo. No uses Markdown (ni asteriscos).
-                    2. Explica si aprobaste o rechazaste la ruta según el combustible y motor.
-                    3. Si aprobaste, dile que ya actualizaste el mapa.
-                    """
+                if geo is None:
+                    system_prompt = f"El conductor pidio ir a '{destino_nombre_raw}' pero no se encontro en el mapa. Dile que sea mas especifico (incluye distrito y provincia)."
                 else:
-                    system_prompt = "Dile al usuario que hubo un error de GPS al trazar la ruta."
+                    nombre_destino, lat_dest, lng_dest = geo
+                    destino_nuevo = {"nombre": nombre_destino, "lat": lat_dest, "lng": lng_dest}
+
+                    puntos_ruta, dist_km = routing_engine.obtener_ruta_optima(
+                        data['ubicacion']['lat'], data['ubicacion']['lng'],
+                        lat_dest, lng_dest
+                    )
+
+                    if puntos_ruta:
+                        consumo_est = round(dist_km * 0.35, 2)
+                        combustible_ok = data['combustible_actual_L'] >= consumo_est
+                        motor_ok = data['estado_motor'] == 'Optimo'
+
+                        if dist_km > 200:
+                            viabilidad = f"RECHAZADA. Destino a {dist_km} km, demasiado lejos (maximo 200 km por mision)."
+                        elif not motor_ok:
+                            viabilidad = "RECHAZADA. Peligro de falla mecanica."
+                        elif not combustible_ok:
+                            viabilidad = f"RECHAZADA. Combustible insuficiente (necesita {consumo_est}L, tienes {data['combustible_actual_L']}L)."
+                        else:
+                            viabilidad = "APROBADA."
+
+                            puntos_firebase = [{"lat": p[0], "lng": p[1]} for p in puntos_ruta]
+
+                            actualizacion_db = {
+                                "puntos_ruta": puntos_firebase,
+                                "destino": destino_nuevo,
+                                "distancia_restante_km": dist_km,
+                                "mision": f"Ruta AI a {nombre_destino}",
+                                "ultima_actualizacion": datetime.now()
+                            }
+
+                        system_prompt = f"""
+                        Eres el asistente de {req.referencia}.
+                        Nuevo destino: {nombre_destino} a {dist_km} km.
+                        Consumo estimado: {consumo_est} L. Combustible actual: {data['combustible_actual_L']} L.
+                        Estado motor: {data['estado_motor']}.
+                        Resultado de evaluacion: {viabilidad}
+                        REGLAS:
+                        1. Se directo. No uses Markdown (ni asteriscos).
+                        2. Explica si aprobaste o rechazaste la ruta segun el combustible, motor y distancia.
+                        3. Si el destino esta a mas de 200 km, explica que excede el limite de mision.
+                        4. Si aprobaste, dile que ya actualizaste el mapa.
+                        """
+                    else:
+                        system_prompt = "Dile al usuario que hubo un error de GPS al trazar la ruta."
             else:
                 # Flujo normal de preguntas
                 system_prompt = f"""
@@ -244,25 +335,40 @@ async def procesar_chat(req: MensajeChat):
                 Destino actual: {data['destino']['nombre']} a {data['distancia_restante_km']} km.
                 Combustible: {data['combustible_actual_L']}L. Motor: {data['estado_motor']}.
                 Consumo estimado = Distancia * 0.35L/km.
-                REGLAS: Sé breve, no uses Markdown (asteriscos).
+                REGLAS: Se breve, no uses Markdown (asteriscos).
                 """
         else:
-            system_prompt = "Eres FleetMind AI, analista logístico. No uses Markdown."
+            system_prompt = "Eres FleetMind AI, analista logistico. No uses Markdown."
 
         # --- 3. RESPUESTA FINAL ---
-        model = genai.GenerativeModel('gemini-pro')
-        response = model.generate_content(f"{system_prompt}\n\nPregunta: {req.mensaje}")
+        print(f"   🔄 LLAMADA 2/2 a OpenRouter (respuesta final)...")
+        print(f"   System prompt (primeros 200 chars): {system_prompt[:200]}...")
+        try:
+            response = client.chat.completions.create(
+                model=MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": req.mensaje}
+                ]
+            )
+            respuesta_texto = response.choices[0].message.content
+            print(f"   ✅ Respuesta final recibida: {respuesta_texto[:100]}...")
+        except Exception as inner_e:
+            print(f"   ❌ ERROR en llamada 2/2: {inner_e}")
+            traceback.print_exc()
+            return {"respuesta": "Error al generar respuesta con IA. Revisa los logs del servidor."}
         
         # Guardamos en base de datos SOLO si la IA aprobó la viabilidad
         if actualizacion_db:
             doc_ref.update(actualizacion_db)
             print(f"✅ RUTA ACTUALIZADA en Firebase para {req.referencia}")
 
-        return {"respuesta": response.text}
+        return {"respuesta": respuesta_texto}
 
     except Exception as e:
-        print(f"❌ Error Chatbot: {e}")
-        return {"respuesta": "Error de conexión con IA."}
+        print(f"❌ Error Chatbot (nivel superior): {type(e).__name__}: {e}")
+        traceback.print_exc()
+        return {"respuesta": f"Error de conexión con IA. ({type(e).__name__})"}
     
 
 # ============================================================================
