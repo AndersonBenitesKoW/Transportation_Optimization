@@ -1,34 +1,474 @@
 .dashboard {
-  padding: 1.5rem;
-  font-family: 'Segoe UI', sans-serif;
-  background-color: #f4f7f6;
+  padding: 24px;
   min-height: 100vh;
+  background: var(--bg-primary);
+  transition: background-color 0.3s ease;
 }
-.kpi-card {
-  background: white;
-  padding: 10px 20px;
-  border-radius: 8px;
-  border-top: 4px solid #3498db;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+
+@media (min-width: 640px) {
+  .dashboard {
+    padding: 24px 24px;
+  }
 }
-.kpi-value {
-  font-size: 1.5em;
-  font-weight: bold;
-}
-.flota-grid {
+
+/* TOASTS */
+.dashboard-toasts {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  width: 330px;
   display: flex;
-  gap: 20px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-toast {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  padding-right: 32px;
+  position: relative;
+  border-left: 4px solid var(--color-danger);
+  animation: slideInRight 0.35s ease both;
+}
+
+.dashboard-toast--warning {
+  border-left-color: var(--color-warning);
+}
+
+.dashboard-toast-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.dashboard-toast-close:hover {
+  color: var(--text-primary);
+}
+
+.dashboard-toast-title {
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  margin: 0 0 2px;
+}
+
+.dashboard-toast-msg {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* HEADER */
+.dashboard-header {
+  margin-bottom: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dashboard-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  margin: 0 0 12px;
+}
+
+.dashboard-kpis {
+  display: flex;
+  gap: 12px;
   flex-wrap: wrap;
 }
-.camion-card {
-  background: white;
+
+.dashboard-kpi {
+  background: var(--card-bg);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  min-width: 110px;
+  text-align: center;
+  border-top: 3px solid var(--color-orange-500);
+}
+
+.dashboard-kpi--red {
+  border-top-color: var(--color-danger);
+}
+
+.dashboard-kpi--yellow {
+  border-top-color: var(--color-warning);
+}
+
+.dashboard-kpi-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.dashboard-kpi-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 2px 0 0;
+}
+
+.dashboard-kpi-value--danger {
+  color: var(--color-danger);
+}
+
+.dashboard-kpi-value--warning {
+  color: var(--color-warning);
+}
+
+/* GRID */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr 360px;
+  }
+}
+
+.dashboard-map {
+  height: 480px;
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  z-index: 1;
+}
+
+.dashboard-map-skeleton {
+  height: 480px;
+}
+
+#mapa-admin {
+  height: 100%;
+  width: 100%;
+}
+
+#mapa-admin .leaflet-control-zoom {
+  border: none;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+#mapa-admin .leaflet-control-zoom a {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+#mapa-admin .leaflet-control-zoom a:hover {
+  background: var(--bg-secondary);
+}
+
+/* INCIDENTS */
+.dashboard-incidents {
+  background: var(--card-bg);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.08);
-  width: 340px;
-  border: 1px solid #eef2f3;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  overflow-y: auto;
+  max-height: 480px;
 }
-@media (max-width: 768px) {
-  .dashboard { padding: 1rem; }
-  .camion-card { width: 100%; }
+
+.dashboard-incidents-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin: 0 0 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid rgba(255, 107, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-incidents-title lucide-icon {
+  color: var(--color-danger);
+}
+
+.dashboard-incident {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: rgba(239, 68, 68, 0.05);
+  border-left: 4px solid var(--color-danger);
+  font-size: 0.75rem;
+}
+
+.dashboard-incident-id {
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+.dashboard-incident-desc {
+  margin: 4px 0;
+  color: var(--text-secondary);
+}
+
+.dashboard-incident-time {
+  color: var(--text-secondary);
+}
+
+.dashboard-incidents-empty {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* SECTION TITLE */
+.dashboard-section-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-section-title lucide-icon {
+  color: var(--color-orange-500);
+}
+
+/* FLEET */
+.dashboard-fleet {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 640px) {
+  .dashboard-fleet {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1280px) {
+  .dashboard-fleet {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.dashboard-fleet-skeleton {
+  height: 320px;
+}
+
+/* CAMION CARD */
+.camion-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.camion-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(255, 107, 0, 0.2);
+}
+
+.camion-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.camion-card-id {
+  font-weight: 800;
+  font-size: 1.125rem;
+  color: var(--color-orange-500);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.camion-card-mision {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(255, 107, 0, 0.1);
+  color: var(--color-orange-500);
+  padding: 4px 10px;
+  border-radius: 9999px;
+}
+
+.camion-card-driver {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 12px;
+}
+
+.camion-card-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 107, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-orange-500);
+}
+
+.camion-card-driver-name {
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.camion-card-driver-phone {
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.camion-card-ia {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+  margin-bottom: 12px;
+  border: 1px solid;
+}
+
+.camion-card-ia--safe {
+  background: var(--color-success-bg);
+  color: #16a34a;
+  border-color: #bbf7d0;
+}
+
+.camion-card-ia--danger {
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  border-color: #fecaca;
+}
+
+.camion-card-pulse {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-danger);
+  animation: badgePulse 2s ease-in-out infinite;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.camion-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+
+.camion-card-metric {
+  background: var(--bg-secondary);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.camion-card-metric strong {
+  color: var(--text-secondary);
+}
+
+.camion-card-fuel {
+  margin-bottom: 12px;
+}
+
+.camion-card-fuel-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.camion-card-fuel-header strong {
+  color: var(--text-secondary);
+}
+
+.camion-card-fuel-value {
+  font-weight: 700;
+}
+
+.camion-card-fuel-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--border-color);
+  overflow: hidden;
+}
+
+.camion-card-fuel-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.7s ease-out;
+}
+
+.camion-card-anomaly {
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.05);
+  color: var(--color-warning);
+  font-weight: 700;
+  font-size: 10px;
+  text-align: center;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  margin-bottom: 8px;
+}
+
+.camion-card-update {
+  font-size: 10px;
+  text-align: right;
+  color: var(--text-secondary);
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes badgePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
 }

@@ -1,104 +1,56 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
-interface Unidad {
-  id: number;
-  id_camion: string;
-  conductor: string;
-  placa: string;
-  capacidad_tanque: number;
-  edad_motor_meses: number;
-  estado: string;
-}
+import { ApiService, Vehiculo, Conductor } from '../../../services/api.service';
+import { IconComponent } from '../../../components/icon.component';
 
 @Component({
   selector: 'app-unidades',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, IconComponent],
   templateUrl: './unidades.html',
   styleUrl: './unidades.css'
 })
-export class UnidadesComponent {
-  unidades: Unidad[] = [
-    { id: 1, id_camion: 'CAMION-001', conductor: 'Juan Pérez', placa: 'ABC-123', capacidad_tanque: 800, edad_motor_meses: 24, estado: 'En ruta' },
-    { id: 2, id_camion: 'CAMION-002', conductor: 'Carlos Mendoza', placa: 'DEF-456', capacidad_tanque: 600, edad_motor_meses: 72, estado: 'En ruta' },
-    { id: 3, id_camion: 'CAMION-003', conductor: 'Luis Ramírez', placa: 'GHI-789', capacidad_tanque: 500, edad_motor_meses: 12, estado: 'Disponible' },
-    { id: 4, id_camion: 'CAMION-004', conductor: 'Miguel Torres', placa: 'JKL-012', capacidad_tanque: 800, edad_motor_meses: 36, estado: 'En ruta' },
-    { id: 5, id_camion: 'CAMION-005', conductor: 'Jorge Vargas', placa: 'MNO-345', capacidad_tanque: 400, edad_motor_meses: 6, estado: 'Taller' },
-    { id: 6, id_camion: 'CAMION-006', conductor: 'Pedro Sánchez', placa: 'PQR-678', capacidad_tanque: 700, edad_motor_meses: 48, estado: 'Disponible' },
-    { id: 7, id_camion: 'CAMION-007', conductor: 'Ana Castillo', placa: 'STU-901', capacidad_tanque: 600, edad_motor_meses: 18, estado: 'Inactivo' }
-  ];
+export class UnidadesComponent implements OnInit {
+  plus = 'plus'; pencil = 'pencil'; trash2 = 'trash-2'; truck = 'truck';
 
-  nextId = 8;
+  private apiService = inject(ApiService);
+  unidades: Vehiculo[] = []; conductores: Conductor[] = [];
+  cargando = false; error: string | null = null;
+  modalAbierto = false; modalEliminar = false; editando = false;
+  eliminarId: string | null = null;
 
-  modalAbierto = false;
-  modalEliminar = false;
-  editando = false;
-  eliminarId: number | null = null;
-
-  form: Unidad = {
-    id: 0,
-    id_camion: '',
-    conductor: '',
-    placa: '',
-    capacidad_tanque: 400,
-    edad_motor_meses: 0,
-    estado: 'Disponible'
-  };
-
+  form: Partial<Vehiculo> = { id_vehiculo: '', placa: '', marca: '', modelo: '', anio: 2024, capacidad_tanque_L: 400, capacidad_carga_ton: 20, kilometraje_actual: 0, edad_motor_meses: 0, estado: 'Disponible', conductor_asignado: '' };
   filtrarEstado: string = 'Todas';
 
-  get filtradas(): Unidad[] {
-    if (this.filtrarEstado === 'Todas') return this.unidades;
-    return this.unidades.filter(u => u.estado === this.filtrarEstado);
+  ngOnInit() { this.cargarDatos(); }
+
+  cargarDatos() {
+    this.cargando = true; this.error = null;
+    this.apiService.getVehiculos().subscribe({ next: (r) => { this.unidades = r.data || []; this.cargando = false; }, error: (e) => { this.error = 'Error: ' + e.message; this.cargando = false; } });
+    this.apiService.getConductores().subscribe({ next: (r) => this.conductores = r.data || [] });
   }
 
-  abrirNuevo() {
-    this.editando = false;
-    this.form = { id: 0, id_camion: '', conductor: '', placa: '', capacidad_tanque: 400, edad_motor_meses: 0, estado: 'Disponible' };
-    this.modalAbierto = true;
-  }
+  get filtradas(): Vehiculo[] { return this.filtrarEstado === 'Todas' ? this.unidades : this.unidades.filter(u => u.estado === this.filtrarEstado); }
 
-  abrirEditar(unidad: Unidad) {
-    this.editando = true;
-    this.form = { ...unidad };
-    this.modalAbierto = true;
-  }
-
-  cerrarModal() {
-    this.modalAbierto = false;
-  }
+  abrirNuevo() { this.editando = false; this.form = { id_vehiculo: '', placa: '', marca: '', modelo: '', anio: 2024, capacidad_tanque_L: 400, capacidad_carga_ton: 20, kilometraje_actual: 0, edad_motor_meses: 0, estado: 'Disponible', conductor_asignado: '' }; this.modalAbierto = true; }
+  abrirEditar(u: Vehiculo) { this.editando = true; this.form = { ...u }; this.modalAbierto = true; }
+  cerrarModal() { this.modalAbierto = false; }
 
   guardar() {
-    if (!this.form.id_camion.trim() || !this.form.conductor.trim()) return;
-
+    if (!this.form.id_vehiculo?.trim() || !this.form.placa?.trim()) { alert('Completa los campos obligatorios'); return; }
+    this.cargando = true;
     if (this.editando) {
-      const idx = this.unidades.findIndex(u => u.id === this.form.id);
-      if (idx !== -1) this.unidades[idx] = { ...this.form };
+      const id = this.form.id_vehiculo!; const { id_vehiculo, ...data } = this.form;
+      this.apiService.updateVehiculo(id, data).subscribe({ next: () => { this.cargarDatos(); this.cerrarModal(); }, error: (e) => { alert('Error: ' + e.message); this.cargando = false; } });
     } else {
-      this.form.id = this.nextId++;
-      this.unidades.push({ ...this.form });
+      this.apiService.createVehiculo(this.form as Vehiculo).subscribe({ next: () => { this.cargarDatos(); this.cerrarModal(); }, error: (e) => { alert('Error: ' + e.message); this.cargando = false; } });
     }
-
-    this.cerrarModal();
   }
 
-  confirmarEliminar(id: number) {
-    this.eliminarId = id;
-    this.modalEliminar = true;
-  }
+  confirmarEliminar(id: string) { this.eliminarId = id; this.modalEliminar = true; }
+  cancelarEliminar() { this.modalEliminar = false; this.eliminarId = null; }
+  ejecutarEliminar() { if (!this.eliminarId) return; this.cargando = true; this.apiService.deleteVehiculo(this.eliminarId).subscribe({ next: () => { this.cargarDatos(); this.modalEliminar = false; this.eliminarId = null; }, error: (e) => { alert('Error: ' + e.message); this.cargando = false; } }); }
 
-  ejecutarEliminar() {
-    if (this.eliminarId !== null) {
-      this.unidades = this.unidades.filter(u => u.id !== this.eliminarId);
-    }
-    this.modalEliminar = false;
-    this.eliminarId = null;
-  }
-
-  cancelarEliminar() {
-    this.modalEliminar = false;
-    this.eliminarId = null;
-  }
+  getNombreConductor(id: string): string { const c = this.conductores.find(x => x.id_conductor === id); return c ? c.nombre : id; }
 }

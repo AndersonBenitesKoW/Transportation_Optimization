@@ -1,0 +1,85 @@
+<div class="alertas-page">
+  <div class="alertas-header">
+    <div>
+      <h1 class="alertas-title">
+        <lucide-icon [img]="bell" class="w-6 h-6"></lucide-icon>
+        Panel de Alertas
+      </h1>
+      <div class="alertas-counts">
+        <span class="alertas-count alertas-count--critical">{{ alertasCriticas }} Criticas</span>
+        <span class="alertas-count alertas-count--pending">{{ alertasPendientes }} Pendientes</span>
+      </div>
+    </div>
+    <button (click)="cargarAlertas()" [disabled]="cargando" class="alertas-refresh">
+      <lucide-icon [img]="refreshCw" class="w-4 h-4" [class.animate-spin]="cargando"></lucide-icon>
+      Actualizar
+    </button>
+  </div>
+
+  <div class="alertas-filters">
+    <button (click)="cambiarFiltro('Todas')" class="alertas-filter"
+            [class.alertas-filter--active]="filtroEstado === 'Todas'">
+      Todas ({{ alertas.length }})
+    </button>
+    <button (click)="cambiarFiltro('Pendiente')" class="alertas-filter"
+            [class.alertas-filter--active]="filtroEstado === 'Pendiente'">
+      Pendientes ({{ alertasPendientes }})
+    </button>
+    <button (click)="cambiarFiltro('Resuelta')" class="alertas-filter"
+            [class.alertas-filter--active]="filtroEstado === 'Resuelta'">
+      Resueltas
+    </button>
+  </div>
+
+  <div *ngIf="cargando" class="alertas-loading">
+    <div class="crud-spinner"></div>
+    <p>Cargando alertas...</p>
+  </div>
+
+  <div *ngIf="error" class="crud-error">{{ error }}</div>
+
+  <div *ngIf="!cargando" class="alertas-grid">
+    <div *ngFor="let a of alertasFiltradas"
+         class="alerta-card"
+         [class.alerta-card--pending]="a.estado === 'Pendiente'"
+         [class.alerta-card--resolved]="a.estado === 'Resuelta'">
+
+      <div class="alerta-card-top">
+        <span class="alerta-card-icon">{{ getTipoIcon(a.tipo) }}</span>
+        <div class="alerta-card-info">
+          <h3 class="alerta-card-title">{{ a.titulo }}</h3>
+          <p class="alerta-card-vehicle">{{ a.id_vehiculo }}</p>
+        </div>
+        <span class="alerta-card-priority" [ngClass]="getPrioridadClass(a.prioridad)">{{ a.prioridad }}</span>
+      </div>
+
+      <p class="alerta-card-desc">{{ a.descripcion }}</p>
+
+      <div class="alerta-card-meta">
+        <span>&#128197; {{ a.fecha_creacion | date:'short' }}</span>
+        <span *ngIf="a.fecha_limite">&#9200; Limite: {{ a.fecha_limite | date:'short' }}</span>
+      </div>
+
+      <div *ngIf="a.ubicacion" class="alerta-card-location">
+        <lucide-icon [img]="mapPin" class="w-3 h-3"></lucide-icon>
+        Lat: {{ a.ubicacion.lat | number:'1.4-4' }}, Lng: {{ a.ubicacion.lng | number:'1.4-4' }}
+      </div>
+
+      <div class="alerta-card-footer">
+        <span class="alerta-card-status"
+              [class.alerta-card-status--pending]="a.estado === 'Pendiente'"
+              [class.alerta-card-status--resolved]="a.estado === 'Resuelta'">{{ a.estado }}</span>
+        <button *ngIf="a.estado === 'Pendiente'" (click)="resolverAlerta(a)" class="alerta-card-resolve">
+          <lucide-icon [img]="circleCheck" class="w-3 h-3"></lucide-icon>
+          Resolver
+        </button>
+        <span *ngIf="a.estado === 'Resuelta'" class="alerta-card-resolved-at">Resuelta: {{ a.fecha_resolucion | date:'short' }}</span>
+      </div>
+    </div>
+
+    <div *ngIf="alertasFiltradas.length === 0" class="alertas-empty">
+      <lucide-icon [img]="bell" class="w-10 h-10"></lucide-icon>
+      <p>No hay alertas {{ filtroEstado === 'Todas' ? '' : filtroEstado.toLowerCase() + 's' }}</p>
+    </div>
+  </div>
+</div>

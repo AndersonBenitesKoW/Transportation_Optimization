@@ -1,9 +1,39 @@
-<nav class="nav-bar">
-  <a routerLink="/home" class="nav-logo">FleetMind AI</a>
-  <div class="nav-links">
-    <a routerLink="/home" class="nav-link" routerLinkActive="nav-link--active" [routerLinkActiveOptions]="{exact: true}">Inicio</a>
-    <a routerLink="/login" class="nav-link" routerLinkActive="nav-link--active">Iniciar Sesión</a>
-    <a routerLink="/register" class="nav-link nav-link--cta" routerLinkActive="nav-link--active">Registrarse</a>
+<nav class="publico-nav"
+     [class.publico-nav--scrolled]="scrolled">
+  <div class="publico-nav-inner">
+    <a routerLink="/home" class="publico-nav-logo">
+      <div class="publico-nav-logo-box">FM</div>
+      <span class="publico-nav-logo-text">FleetMind AI</span>
+    </a>
+
+    <div class="publico-nav-links">
+      <a routerLink="/home" class="publico-nav-link">Inicio</a>
+      <a routerLink="/login" class="publico-nav-link">Iniciar Sesion</a>
+      <a routerLink="/register" class="publico-nav-cta">Registrarse</a>
+      <button (click)="toggleTema()" class="publico-nav-theme"
+              [attr.aria-label]="themeService.isDark() ? 'Modo claro' : 'Modo oscuro'">
+        <lucide-icon [img]="themeService.isDark() ? sun : moon" class="w-4 h-4"></lucide-icon>
+      </button>
+    </div>
+
+    <div class="publico-nav-mobile-btns">
+      <button (click)="toggleTema()" class="publico-nav-theme"
+              [attr.aria-label]="themeService.isDark() ? 'Modo claro' : 'Modo oscuro'">
+        <lucide-icon [img]="themeService.isDark() ? sun : moon" class="w-4 h-4"></lucide-icon>
+      </button>
+      <button (click)="toggleMenu()" class="publico-nav-hamburger">
+        <lucide-icon [img]="menuAbierto ? x : menu" class="w-5 h-5"></lucide-icon>
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="menuAbierto" class="publico-nav-mobile animate-fadeInDown">
+    <a routerLink="/home" (click)="cerrarMenu()" class="publico-nav-mobile-link">Inicio</a>
+    <a routerLink="/login" (click)="cerrarMenu()" class="publico-nav-mobile-link">Iniciar Sesion</a>
+    <a routerLink="/register" (click)="cerrarMenu()" class="publico-nav-mobile-cta">Registrarse</a>
   </div>
 </nav>
-<router-outlet></router-outlet>
+
+<div class="publico-content">
+  <router-outlet></router-outlet>
+</div>

@@ -1,116 +1,220 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg-primary);
+  transition: background-color 0.3s ease;
 }
 
-/* SIDEBAR */
-.sidebar {
-  width: 250px;
-  background: linear-gradient(180deg, #1a5276 0%, #1f3a4b 100%);
-  display: flex;
-  flex-direction: column;
+.admin-sidebar {
   position: fixed;
   top: 0;
   left: 0;
   height: 100vh;
   z-index: 100;
-  box-shadow: 2px 0 12px rgba(0,0,0,0.1);
-}
-.sidebar-header {
-  padding: 1.5rem 1.2rem 0.8rem;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-.sidebar-logo {
-  font-size: 1.3rem;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: 0.5px;
-}
-.sidebar-role {
-  font-size: 0.8rem;
-  color: rgba(255,255,255,0.6);
-  margin-top: 0.3rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  display: flex;
+  flex-direction: column;
+  width: 260px;
+  background: linear-gradient(to bottom, #0D0D0D, #1A1A1A);
+  border-right: 1px solid rgba(255, 107, 0, 0.1);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease-in-out;
 }
 
-.sidebar-nav {
+.admin-sidebar--collapsed {
+  width: 64px;
+}
+
+.admin-sidebar-header {
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.admin-sidebar-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--color-orange-500), var(--color-orange-400));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(255, 107, 0, 0.25);
+}
+
+.admin-sidebar-brand {
+  transition: all 0.2s ease;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.admin-sidebar-brand--hidden {
+  opacity: 0;
+  width: 0;
+}
+
+.admin-sidebar-title {
+  color: #fff;
+  font-weight: 800;
+  font-size: 1.125rem;
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+.admin-sidebar-subtitle {
+  color: var(--color-orange-400);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin: 2px 0 0;
+}
+
+.admin-sidebar-toggle {
+  position: absolute;
+  right: -12px;
+  top: 80px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-orange-500);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(255, 107, 0, 0.3);
+  z-index: 10;
+  transition: all 0.2s ease;
+}
+
+.admin-sidebar-toggle:hover {
+  background: var(--color-orange-400);
+}
+
+.admin-sidebar-nav {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 1rem 0.8rem;
+  gap: 2px;
+  padding: 16px 12px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
-.sidebar-link {
+
+.admin-sidebar-link {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.8rem 1rem;
-  color: rgba(255,255,255,0.75);
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+  font-size: 0.875rem;
   text-decoration: none;
-  font-size: 1rem;
-  font-weight: 600;
-  border-radius: 10px;
-  transition: all 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: all 0.15s ease;
 }
-.sidebar-link:hover { color: #fff; background: rgba(255,255,255,0.1); }
-.sidebar-link--active {
-  color: #fff;
-  background: rgba(52,152,219,0.4);
-  box-shadow: inset 3px 0 0 #3498db;
-}
-.sidebar-icon { font-size: 1.3rem; }
 
-.sidebar-footer {
-  padding: 1rem 0.8rem;
-  border-top: 1px solid rgba(255,255,255,0.1);
+.admin-sidebar-link:hover {
+  color: #fff;
+  background: rgba(255, 107, 0, 0.08);
 }
-.sidebar-logout {
+
+.admin-sidebar-link--active {
+  background: rgba(255, 107, 0, 0.15) !important;
+  color: #fff !important;
+  box-shadow: inset 3px 0 0 #FF6B00;
+}
+
+.admin-sidebar-link--danger:hover {
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.admin-sidebar-label {
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.admin-sidebar-label--hidden {
+  opacity: 0;
+  width: 0;
+}
+
+.admin-sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-sidebar-profile {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.8rem 1rem;
-  width: 100%;
-  color: rgba(255,255,255,0.6);
-  background: none;
-  border: none;
-  font-size: 1rem;
+  gap: 12px;
+  padding: 8px 12px;
+  overflow: hidden;
+}
+
+.admin-sidebar-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-orange-500), var(--color-orange-400));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.admin-sidebar-username {
+  color: #fff;
+  font-size: 0.75rem;
   font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: left;
+  line-height: 1.25;
+  margin: 0;
 }
-.sidebar-logout:hover { color: #e74c3c; background: rgba(231,76,60,0.15); }
 
-/* CONTENT */
-.admin-content {
+.admin-sidebar-rol {
+  color: rgba(255, 107, 0, 0.7);
+  font-size: 10px;
+  margin: 0;
+}
+
+.admin-main {
   flex: 1;
-  margin-left: 250px;
-  background: #f0f4f8;
-  min-height: 100vh;
+  transition: margin-left 0.3s ease-in-out;
 }
 
-/* RESPONSIVE */
-@media (max-width: 768px) {
-  .sidebar {
-    width: 60px;
-    overflow: hidden;
-  }
-  .sidebar-logo, .sidebar-role, .sidebar-link span:not(.sidebar-icon), .sidebar-logout span:not(.sidebar-icon) {
-    display: none;
-  }
-  .sidebar-link { justify-content: center; padding: 0.8rem; }
-  .sidebar-logout { justify-content: center; padding: 0.8rem; }
-  .sidebar-icon { font-size: 1.5rem; }
-  .admin-content { margin-left: 60px; }
+.admin-main--expanded {
+  margin-left: 260px;
 }
-@media (max-width: 480px) {
-  .sidebar { width: 50px; }
-  .admin-content { margin-left: 50px; }
+
+.admin-main--collapsed {
+  margin-left: 64px;
+}
+
+@media (max-width: 768px) {
+  .admin-sidebar {
+    width: 56px !important;
+  }
+  .admin-sidebar-label {
+    display: none !important;
+  }
+  .admin-main--expanded,
+  .admin-main--collapsed {
+    margin-left: 56px !important;
+  }
 }

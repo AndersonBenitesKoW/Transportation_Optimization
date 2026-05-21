@@ -1,102 +1,121 @@
-<div class="home">
-  <header class="hero">
-    <div class="hero-content">
-      <h1 class="hero-title">Inteligencia Operativa<br />para tu Flota</h1>
-      <p class="hero-subtitle">
-        Monitoreo en tiempo real, predicción de fallas, detección de anomalías y
-        asistencia con IA para optimizar cada kilómetro de tu flota.
+<div class="home-page">
+  <section class="home-hero">
+    <div class="home-hero-orb home-hero-orb--1"></div>
+    <div class="home-hero-orb home-hero-orb--2"></div>
+
+    <div class="home-hero-content">
+      <div class="home-hero-badge">
+        <lucide-icon [img]="zap" class="w-3.5 h-3.5"></lucide-icon>
+        INTELIGENCIA ARTIFICIAL PARA FLOTAS
+      </div>
+      <h1 class="home-hero-title">
+        <span class="home-hero-gradient">Inteligencia</span> Operativa<br/>para tu Flota
+      </h1>
+      <p class="home-hero-subtitle">
+        Monitoreo en tiempo real, prediccion de fallas, deteccion de anomalias y asistencia con IA para optimizar cada kilometro de tu flota.
       </p>
-      <div class="hero-actions">
-        <a routerLink="/register" class="btn btn--primary">Comenzar Ahora</a>
-        <a routerLink="/login" class="btn btn--outline">Iniciar Sesión</a>
+      <div class="home-hero-actions">
+        <a routerLink="/register" class="home-btn-primary">
+          <lucide-icon [img]="trendingUp" class="w-5 h-5"></lucide-icon>
+          Comenzar Ahora
+        </a>
+        <a routerLink="/login" class="home-btn-ghost">
+          Iniciar Sesion
+        </a>
       </div>
     </div>
-  </header>
 
-  <section class="features">
-    <h2 class="section-title">¿Por qué FleetMind AI?</h2>
-    <div class="features-grid">
-      <div class="feature-card">
-        <div class="feature-icon">🚛</div>
-        <h3 class="feature-title">Monitoreo en Vivo</h3>
-        <p class="feature-desc">
-          Visualiza la ubicación de cada camión en tiempo real con mapas
-          interactivos y rutas dinámicas.
-        </p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🤖</div>
-        <h3 class="feature-title">Asistente con IA</h3>
-        <p class="feature-desc">
-          Conductores y administradores reciben respuestas inteligentes sobre
-          rutas, combustible y estado mecánico.
-        </p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🛡️</div>
-        <h3 class="feature-title">Detección de Anomalías</h3>
-        <p class="feature-desc">
-          Algoritmos de machine learning identifican robos de combustible,
-          fugas y patrones de conducción peligrosos.
-        </p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">⚙️</div>
-        <h3 class="feature-title">Predicción de Fallas</h3>
-        <p class="feature-desc">
-          Anticipa fallas mecánicas antes de que ocurran con modelos
-          entrenados en datos históricos de tu flota.
-        </p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">📊</div>
-        <h3 class="feature-title">Dashboard Estratégico</h3>
-        <p class="feature-desc">
-          KPIs en tiempo real: camiones en ruta, riesgos mecánicos,
-          alertas de combustible y más.
-        </p>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">🔔</div>
-        <h3 class="feature-title">Alertas Inmediatas</h3>
-        <p class="feature-desc">
-          Notificaciones automáticas ante cualquier incidente: motor en
-          sobrecalentamiento, consumo anómalo o desvío de ruta.
-        </p>
-      </div>
-    </div>
+    <div class="home-hero-curve"></div>
   </section>
 
-  <section class="stats">
-    <div class="stats-grid">
-      <div class="stat-item">
-        <span class="stat-number">99.2%</span>
-        <span class="stat-label">Precisión Predictiva</span>
+  <section class="home-features">
+    <div class="home-features-header">
+      <h2 class="home-features-title">Por que FleetMind AI?</h2>
+      <p class="home-features-subtitle">Potencia tu flota con inteligencia artificial de ultima generacion.</p>
+    </div>
+    <div class="home-features-grid">
+      <div class="home-feature-card">
+        <div class="home-feature-accent"></div>
+        <div class="home-feature-icon">
+          <lucide-icon [img]="truck" class="w-7 h-7"></lucide-icon>
+        </div>
+        <h3 class="home-feature-name">Monitoreo en Vivo</h3>
+        <p class="home-feature-desc">Visualiza la ubicacion de cada camion en tiempo real con mapas interactivos y rutas dinamicas.</p>
       </div>
-      <div class="stat-item">
-        <span class="stat-number">&lt; 5s</span>
-        <span class="stat-label">Latencia de Monitoreo</span>
+      <div class="home-feature-card">
+        <div class="home-feature-accent"></div>
+        <div class="home-feature-icon">
+          <lucide-icon [img]="zap" class="w-7 h-7"></lucide-icon>
+        </div>
+        <h3 class="home-feature-name">Asistente con IA</h3>
+        <p class="home-feature-desc">Conductores y administradores reciben respuestas inteligentes sobre rutas, combustible y estado mecanico.</p>
       </div>
-      <div class="stat-item">
-        <span class="stat-number">24/7</span>
-        <span class="stat-label">Operación Continua</span>
+      <div class="home-feature-card">
+        <div class="home-feature-accent"></div>
+        <div class="home-feature-icon">
+          <lucide-icon [img]="shield" class="w-7 h-7"></lucide-icon>
+        </div>
+        <h3 class="home-feature-name">Deteccion de Anomalias</h3>
+        <p class="home-feature-desc">Algoritmos de machine learning identifican robos de combustible, fugas y patrones de conduccion peligrosos.</p>
       </div>
-      <div class="stat-item">
-        <span class="stat-number">+40%</span>
-        <span class="stat-label">Ahorro en Combustible</span>
+      <div class="home-feature-card">
+        <div class="home-feature-accent"></div>
+        <div class="home-feature-icon">
+          <lucide-icon [img]="wrench" class="w-7 h-7"></lucide-icon>
+        </div>
+        <h3 class="home-feature-name">Prediccion de Fallas</h3>
+        <p class="home-feature-desc">Anticipa fallas mecanicas antes de que ocurran con modelos entrenados en datos historicos de tu flota.</p>
+      </div>
+      <div class="home-feature-card">
+        <div class="home-feature-accent"></div>
+        <div class="home-feature-icon">
+          <lucide-icon [img]="barChart3" class="w-7 h-7"></lucide-icon>
+        </div>
+        <h3 class="home-feature-name">Dashboard Estrategico</h3>
+        <p class="home-feature-desc">KPIs en tiempo real: camiones en ruta, riesgos mecanicos, alertas de combustible y mas.</p>
+      </div>
+      <div class="home-feature-card">
+        <div class="home-feature-accent"></div>
+        <div class="home-feature-icon">
+          <lucide-icon [img]="bellRing" class="w-7 h-7"></lucide-icon>
+        </div>
+        <h3 class="home-feature-name">Alertas Inmediatas</h3>
+        <p class="home-feature-desc">Notificaciones automaticas ante cualquier incidente: motor en sobrecalentamiento, consumo anomalo o desvio de ruta.</p>
       </div>
     </div>
   </section>
 
-  <section class="cta">
-    <h2 class="cta-title">Listo para transformar tu flota?</h2>
-    <p class="cta-text">
-      Únete a las empresas que ya optimizan sus operaciones con inteligencia artificial.
-    </p>
-    <a routerLink="/register" class="btn btn--primary btn--large">Crear Cuenta Gratis</a>
+  <section class="home-stats">
+    <div class="home-stats-glow"></div>
+    <div class="home-stats-grid">
+      <div class="home-stat">
+        <span class="home-stat-number">99.2%</span>
+        <span class="home-stat-label">Precision Predictiva</span>
+      </div>
+      <div class="home-stat">
+        <span class="home-stat-number">&lt;5s</span>
+        <span class="home-stat-label">Latencia de Monitoreo</span>
+      </div>
+      <div class="home-stat">
+        <span class="home-stat-number">24/7</span>
+        <span class="home-stat-label">Operacion Continua</span>
+      </div>
+      <div class="home-stat">
+        <span class="home-stat-number">+40%</span>
+        <span class="home-stat-label">Ahorro en Combustible</span>
+      </div>
+    </div>
   </section>
 
-  <footer class="footer">
-    <p>&copy; 2026 FleetMind AI. Todos los derechos reservados.</p>
+  <section class="home-cta">
+    <h2 class="home-cta-title">Listo para transformar tu flota?</h2>
+    <p class="home-cta-subtitle">Unete a las empresas que ya optimizan sus operaciones con inteligencia artificial.</p>
+    <a routerLink="/register" class="home-btn-primary home-btn-primary--lg">
+      Crear Cuenta Gratis
+    </a>
+  </section>
+
+  <footer class="home-footer">
+    &copy; 2026 FleetMind AI. Todos los derechos reservados.
   </footer>
 </div>

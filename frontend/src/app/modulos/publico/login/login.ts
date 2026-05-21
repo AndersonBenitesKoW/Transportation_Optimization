@@ -1,50 +1,59 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute, RouterLink } from '@angular/router';
+import { AuthService } from '../../../services/auth.service';
+import { ThemeService } from '../../../services/theme.service';
+import { IconComponent } from '../../../components/icon.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  templateUrl: './login.html'
+  imports: [CommonModule, FormsModule, RouterLink, IconComponent],
+  templateUrl: './login.html',
+  styleUrl: './login.css'
 })
 export class LoginComponent implements OnInit {
-  usuariosBD = [
-    { user: 'admin', pass: 'admin123', rol: 'ADMIN', ref: 'TODOS' },
-    { user: 'c001', pass: '1234', rol: 'CONDUCTOR', ref: 'CAMION-001' },
-    { user: 'c002', pass: '1234', rol: 'CONDUCTOR', ref: 'CAMION-002' },
-    { user: 'c003', pass: '1234', rol: 'CONDUCTOR', ref: 'CAMION-003' }
-  ];
-  
-  credenciales = { user: '', pass: '' };
-  errorLogin = '';
+  sun = 'sun';
+  moon = 'moon';
+  eye = 'eye';
+  eyeOff = 'eye-off';
+  truck = 'truck';
+
+  private authService = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  readonly themeService = inject(ThemeService);
+
+  credenciales = { email: '', password: '' };
+  errorLogin = '';
+  cargando = false;
+  returnUrl = '/admin/dashboard';
+  mostrarPassword = false;
 
   ngOnInit() {
-    // Si ya hay sesión guardada, saltamos el login
-    const sesion = localStorage.getItem('fleetmind_user');
-    if (sesion) {
-      const user = JSON.parse(sesion);
-      this.redirigirSegunRol(user.rol);
-    }
+    if (this.authService.isAuthenticated) { this.redirigirSegunRol(); return; }
+    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/admin/dashboard';
   }
 
   iniciarSesion() {
-    const user = this.usuariosBD.find(u => u.user === this.credenciales.user && u.pass === this.credenciales.pass);
-    if (user) {
-      localStorage.setItem('fleetmind_user', JSON.stringify(user));
-      this.redirigirSegunRol(user.rol);
-    } else {
-      this.errorLogin = 'Usuario o contraseña incorrectos.';
-    }
+    if (!this.credenciales.email || !this.credenciales.password) { this.errorLogin = 'Completa todos los campos'; return; }
+    this.cargando = true; this.errorLogin = '';
+    if (this.credenciales.email === 'admin' && this.credenciales.password === 'admin123') { this.authService.loginDemo('ADMIN'); this.cargando = false; return; }
+    if (this.credenciales.email.startsWith('c00') && this.credenciales.password === '1234') { this.authService.loginDemo('CONDUCTOR'); this.cargando = false; return; }
+    this.authService.login(this.credenciales.email, this.credenciales.password).subscribe({
+      next: (r: any) => { this.cargando = false; if (r.status === 'success') this.redirigirSegunRol(); else this.errorLogin = 'Usuario o contrasena incorrectos'; },
+      error: () => { this.cargando = false; this.errorLogin = 'Error. Intenta con: admin/admin123'; }
+    });
   }
 
-  private redirigirSegunRol(rol: string) {
-    if (rol === 'ADMIN') {
-      this.router.navigate(['/admin']);
-    } else if (rol === 'CONDUCTOR') {
-      this.router.navigate(['/conductor']);
-    }
+  private redirigirSegunRol() {
+    const user = this.authService.currentUserValue;
+    if (!user) return;
+    user.rol === 'ADMIN' ? this.router.navigate([this.returnUrl]) : this.router.navigate(['/conductor']);
   }
+
+  loginRapido(rol: 'ADMIN' | 'CONDUCTOR') { this.authService.loginDemo(rol); }
+  togglePassword() { this.mostrarPassword = !this.mostrarPassword; }
+  toggleTema() { this.themeService.toggleTheme(); }
 }

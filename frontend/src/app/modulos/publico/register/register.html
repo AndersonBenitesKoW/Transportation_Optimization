@@ -1,133 +1,142 @@
 <div class="register-page">
-  <div class="register-container">
+  <div class="register-container animate-in">
+
     <div class="register-info">
-      <a routerLink="/home" class="register-back">← Volver al inicio</a>
-      <div class="register-info-content">
-        <h1 class="register-info-title">Únete a FleetMind AI</h1>
-        <p class="register-info-text">
-          Optimiza tu flota con inteligencia artificial. Monitoreo en tiempo real,
-          predicción de fallas y detección de anomalías en un solo panel.
-        </p>
-        <ul class="register-benefits">
-          <li>🚛 Monitoreo GPS en vivo</li>
-          <li>🤖 Asistente con IA integrado</li>
-          <li>🛡️ Detección de robo de combustible</li>
-          <li>⚙️ Predicción de fallas mecánicas</li>
-          <li>📊 Dashboard estratégico</li>
-        </ul>
+      <a routerLink="/home" class="register-back">
+        <lucide-icon [img]="arrowLeft" class="w-4 h-4"></lucide-icon>
+        Volver al inicio
+      </a>
+      <div class="register-info-body">
+        <div class="register-info-logo">
+          <lucide-icon [img]="truck" class="w-7 h-7"></lucide-icon>
+        </div>
+        <h1 class="register-info-title">Unete a FleetMind AI</h1>
+        <p class="register-info-desc">Optimiza tu flota con inteligencia artificial. Monitoreo en tiempo real, prediccion de fallas y deteccion de anomalias en un solo panel.</p>
+        <div class="register-benefits">
+          <div class="register-benefit">
+            <lucide-icon [img]="truck" class="w-4 h-4"></lucide-icon>
+            Monitoreo GPS en vivo
+          </div>
+          <div class="register-benefit">
+            <span class="register-benefit-icon">AI</span>
+            Asistente con IA integrado
+          </div>
+          <div class="register-benefit">
+            <span class="register-benefit-icon register-benefit-icon--emoji">&#9889;</span>
+            Prediccion de fallas mecanicas
+          </div>
+          <div class="register-benefit">
+            <span class="register-benefit-icon register-benefit-icon--emoji">&#128202;</span>
+            Dashboard estrategico
+          </div>
+        </div>
       </div>
+      <div class="register-info-glow"></div>
     </div>
 
-    <div class="register-form-wrapper">
-      <div *ngIf="!registrado; else exito">
+    <div class="register-form-panel">
+      <ng-container *ngIf="!registrado; else exito">
         <h2 class="register-form-title">Crear Cuenta</h2>
         <p class="register-form-subtitle">Completa tus datos para registrarte.</p>
 
         <form (ngSubmit)="registrar()" class="register-form" autocomplete="off">
-          <div class="form-row">
-            <div class="form-group">
-              <label for="nombre" class="form-label">Nombre Completo</label>
-              <input
-                id="nombre"
-                type="text"
-                [(ngModel)]="formData.nombre"
-                name="nombre"
-                placeholder="Ej. Juan Pérez"
-                [class.is-valid]="getValido('nombre')"
-                [class.is-invalid]="getInvalido('nombre')"
-              />
-              <span class="form-error" *ngIf="getInvalido('nombre')">{{ errores['nombre'] }}</span>
+          <div class="register-form-row">
+            <div class="register-field">
+              <label class="register-label">Nombre Completo</label>
+              <input type="text" [(ngModel)]="formData.nombre" name="nombre" placeholder="Juan Perez"
+                     class="register-input"
+                     [class.register-input--valid]="getValido('nombre')"
+                     [class.register-input--invalid]="getInvalido('nombre')" />
+              <span *ngIf="getInvalido('nombre')" class="register-error">{{ errores['nombre'] }}</span>
             </div>
-            <div class="form-group">
-              <label for="empresa" class="form-label">Empresa</label>
-              <input
-                id="empresa"
-                type="text"
-                [(ngModel)]="formData.empresa"
-                name="empresa"
-                placeholder="Ej. Transportes Rápidos S.A."
-                [class.is-valid]="getValido('empresa')"
-                [class.is-invalid]="getInvalido('empresa')"
-              />
-              <span class="form-error" *ngIf="getInvalido('empresa')">{{ errores['empresa'] }}</span>
+            <div class="register-field">
+              <label class="register-label">Empresa</label>
+              <input type="text" [(ngModel)]="formData.empresa" name="empresa" placeholder="Transportes S.A."
+                     class="register-input"
+                     [class.register-input--valid]="getValido('empresa')"
+                     [class.register-input--invalid]="getInvalido('empresa')" />
+              <span *ngIf="getInvalido('empresa')" class="register-error">{{ errores['empresa'] }}</span>
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="email" class="form-label">Correo Electrónico</label>
-            <input
-              id="email"
-              type="email"
-              [(ngModel)]="formData.email"
-              name="email"
-              placeholder="Ej. juan@empresa.com"
-              [class.is-valid]="getValido('email')"
-              [class.is-invalid]="getInvalido('email')"
-            />
-            <span class="form-error" *ngIf="getInvalido('email')">{{ errores['email'] }}</span>
+          <div class="register-field">
+            <label class="register-label">Correo Electronico</label>
+            <input type="email" [(ngModel)]="formData.email" name="email" placeholder="juan@empresa.com"
+                   class="register-input"
+                   [class.register-input--valid]="getValido('email')"
+                   [class.register-input--invalid]="getInvalido('email')" />
+            <span *ngIf="getInvalido('email')" class="register-error">{{ errores['email'] }}</span>
           </div>
 
-          <div class="form-group">
-            <label for="telefono" class="form-label">Teléfono</label>
-            <input
-              id="telefono"
-              type="tel"
-              [(ngModel)]="formData.telefono"
-              name="telefono"
-              placeholder="Ej. 987654321"
-              [class.is-valid]="getValido('telefono')"
-              [class.is-invalid]="getInvalido('telefono')"
-            />
-            <span class="form-error" *ngIf="getInvalido('telefono')">{{ errores['telefono'] }}</span>
+          <div class="register-field">
+            <label class="register-label">Telefono</label>
+            <input type="tel" [(ngModel)]="formData.telefono" name="telefono" placeholder="987654321"
+                   class="register-input"
+                   [class.register-input--valid]="getValido('telefono')"
+                   [class.register-input--invalid]="getInvalido('telefono')" />
+            <span *ngIf="getInvalido('telefono')" class="register-error">{{ errores['telefono'] }}</span>
           </div>
 
-          <div class="form-row">
-            <div class="form-group">
-              <label for="password" class="form-label">Contraseña</label>
-              <input
-                id="password"
-                type="password"
-                [(ngModel)]="formData.password"
-                name="password"
-                placeholder="Mínimo 6 caracteres"
-                [class.is-valid]="getValido('password')"
-                [class.is-invalid]="getInvalido('password')"
-              />
-              <span class="form-error" *ngIf="getInvalido('password')">{{ errores['password'] }}</span>
+          <div class="register-field">
+            <label class="register-label">Contrasena</label>
+            <div class="register-password-wrapper">
+              <input [type]="mostrarPassword ? 'text' : 'password'" [(ngModel)]="formData.password"
+                     name="password" placeholder="Minimo 6 caracteres"
+                     class="register-input register-input--password"
+                     [class.register-input--valid]="getValido('password')"
+                     [class.register-input--invalid]="getInvalido('password')" />
+              <button type="button" (click)="mostrarPassword = !mostrarPassword" class="register-password-toggle">
+                <lucide-icon [img]="mostrarPassword ? eyeOff : eye" class="w-4 h-4"></lucide-icon>
+              </button>
             </div>
-            <div class="form-group">
-              <label for="confirmPassword" class="form-label">Confirmar Contraseña</label>
-              <input
-                id="confirmPassword"
-                type="password"
-                [(ngModel)]="formData.confirmPassword"
-                name="confirmPassword"
-                placeholder="Repite la contraseña"
-                [class.is-valid]="getValido('confirmPassword')"
-                [class.is-invalid]="getInvalido('confirmPassword')"
-              />
-              <span class="form-error" *ngIf="getInvalido('confirmPassword')">{{ errores['confirmPassword'] }}</span>
+            <div *ngIf="formData.password" class="register-strength">
+              <div class="register-strength-bars">
+                <div *ngFor="let _ of [1,2,3,4,5]; let i = index" class="register-strength-bar"
+                     [style.backgroundColor]="i < fortalezaPassword ? fortalezaColor : '#E5E5E5'"></div>
+              </div>
+              <p class="register-strength-text" [style.color]="fortalezaColor">{{ fortalezaTexto }}</p>
             </div>
           </div>
 
-          <button type="submit" class="btn-register">Crear Cuenta</button>
+          <div class="register-field">
+            <label class="register-label">Confirmar Contrasena</label>
+            <div class="register-password-wrapper">
+              <input [type]="mostrarConfirm ? 'text' : 'password'" [(ngModel)]="formData.confirmPassword"
+                     name="confirmPassword" placeholder="Repite la contrasena"
+                     class="register-input register-input--password"
+                     [class.register-input--valid]="getValido('confirmPassword')"
+                     [class.register-input--invalid]="getInvalido('confirmPassword')" />
+              <button type="button" (click)="mostrarConfirm = !mostrarConfirm" class="register-password-toggle">
+                <lucide-icon [img]="mostrarConfirm ? eyeOff : eye" class="w-4 h-4"></lucide-icon>
+              </button>
+            </div>
+            <span *ngIf="getInvalido('confirmPassword')" class="register-error">{{ errores['confirmPassword'] }}</span>
+          </div>
+
+          <button type="submit" [disabled]="cargando" class="register-submit">
+            <span *ngIf="!cargando">Crear Cuenta</span>
+            <span *ngIf="cargando" class="register-loading">
+              <span class="spinner-sm"></span>
+              Registrando...
+            </span>
+          </button>
         </form>
 
-        <p class="register-login-link">
-          ¿Ya tienes cuenta?
-          <a routerLink="/login">Inicia sesión aquí</a>
+        <p class="register-footer-text">
+          Ya tienes cuenta? <a routerLink="/login" class="register-footer-link">Inicia sesion aqui</a>
         </p>
-      </div>
+      </ng-container>
 
       <ng-template #exito>
-        <div class="register-exito">
-          <div class="exito-icon">✅</div>
-          <h2 class="exito-title">¡Registro Exitoso!</h2>
-          <p class="exito-text">
-            Hemos enviado un correo de confirmación a <strong>{{ formData.email }}</strong>.
-            Revisa tu bandeja de entrada para activar tu cuenta.
+        <div class="register-success">
+          <div class="register-success-icon">
+            <lucide-icon [img]="circleCheck" class="w-10 h-10"></lucide-icon>
+          </div>
+          <h2 class="register-success-title">Registro Exitoso!</h2>
+          <p class="register-success-desc">
+            Hemos enviado un correo de confirmacion a <strong>{{ formData.email }}</strong>. Revisa tu bandeja de entrada para activar tu cuenta.
           </p>
-          <a routerLink="/login" class="btn-register">Ir a Iniciar Sesión</a>
+          <a routerLink="/login" class="register-success-btn">Ir a Iniciar Sesion</a>
         </div>
       </ng-template>
     </div>

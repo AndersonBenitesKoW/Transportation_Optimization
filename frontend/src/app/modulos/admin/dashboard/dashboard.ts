@@ -1,133 +1,106 @@
-import { Component, OnInit, AfterViewInit, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
+import { Subscription, timer, switchMap } from 'rxjs';
 import { FlotaService } from '../../../services/flota';
+import { AuthService } from '../../../services/auth.service';
+import { ApiService } from '../../../services/api.service';
+import { IconComponent } from '../../../components/icon.component';
 import * as L from 'leaflet';
-import 'leaflet-routing-machine';
 
 @Component({
   selector: 'app-dashboard-admin',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
-export class DashboardAdminComponent implements OnInit, AfterViewInit {
-  flota: any[] = [];
-  incidentes: any[] = [];
-  alertasActivas: any[] = [];
-  usuarioActual: any = null;
+export class DashboardAdminComponent implements OnInit, OnDestroy {
+  truck = 'truck'; alertTriangle = 'alert-triangle'; trendingUp = 'trending-up';
+  trendingDown = 'trending-down'; mapPin = 'map-pin'; fuel = 'fuel'; activity = 'activity';
 
-  conPeligro: number = 0;
-  conAnomalia: number = 0;
+  flota: any[] = []; incidentes: any[] = []; alertasActivas: any[] = [];
+  usuarioActual: any = null; kpis: any = null;
+  conPeligro: number = 0; conAnomalia: number = 0; cargando: boolean = true;
 
   private flotaService = inject(FlotaService);
+  private authService = inject(AuthService);
+  private apiService = inject(ApiService);
   private router = inject(Router);
 
   private map!: L.Map;
   private markers: { [id: string]: L.Marker } = {};
-  private routes: { [id: string]: any } = {};
+  private routes: { [id: string]: L.Polyline } = {};
+  private pollSub1!: Subscription;
+  private pollSub2!: Subscription;
 
-  private customIcon = L.icon({
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  private truckIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
     shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34]
+    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
   });
 
+  private routeColors: Record<string, string> = {
+    'CAMION-001': '#3498db', 'CAMION-002': '#e74c3c', 'CAMION-003': '#f1c40f', 'CAMION-004': '#2ecc71', 'CAMION-005': '#9b59b6'
+  };
+
   ngOnInit() {
-    const sesion = localStorage.getItem('fleetmind_user');
-    if (sesion) {
-      this.usuarioActual = JSON.parse(sesion);
-      if (this.usuarioActual.rol !== 'ADMIN') this.router.navigate(['/login']);
-    } else {
-      this.router.navigate(['/login']);
-    }
-
-    this.obtenerDatos();
-    setInterval(() => this.obtenerDatos(), 5000);
+    this.usuarioActual = this.authService.currentUserValue;
+    if (!this.authService.isAuthenticated || !this.authService.isAdmin) { this.router.navigate(['/login']); return; }
+    this.obtenerKPIs();
+    this.pollSub1 = timer(0, 5000).pipe(
+      switchMap(() => this.flotaService.getFlota())
+    ).subscribe({
+      next: (res: any) => {
+        this.flota = (res.data || []).map((c: any) => { c.peligro_mecanico = (c.temperatura_motor >= 102 || c.horas_conduccion >= 10); return c; });
+        this.conPeligro = this.flota.filter((c: any) => c.peligro_mecanico).length;
+        this.conAnomalia = this.flota.filter((c: any) => c.anomalia_combustible).length;
+        this.cargando = false;
+        if (!this.map) {
+          setTimeout(() => this.iniciarMapa(), 150);
+        } else {
+          this.map.invalidateSize();
+          this.actualizarMarcadores();
+        }
+      },
+      error: () => { this.cargando = false; }
+    });
+    this.pollSub2 = timer(0, 5000).pipe(
+      switchMap(() => this.flotaService.getIncidentes())
+    ).subscribe({
+      next: (res: any) => this.incidentes = res.data || []
+    });
   }
 
-  ngAfterViewInit() {
-    setTimeout(() => this.iniciarMapa(), 200);
-  }
+  ngOnDestroy() { this.pollSub1?.unsubscribe(); this.pollSub2?.unsubscribe(); if (this.map) this.map.remove(); }
 
   iniciarMapa() {
-    const el = document.getElementById('mapa-admin');
-    if (!el) return;
-    this.map = L.map('mapa-admin').setView([-8.1159, -79.0299], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
-    }).addTo(this.map);
+    const el = document.getElementById('mapa-admin'); if (!el) return;
+    this.map = L.map('mapa-admin', { zoomControl: false }).setView([-8.1159, -79.0299], 13);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO', subdomains: 'abcd', maxZoom: 19 }).addTo(this.map);
+    L.control.zoom({ position: 'bottomright' }).addTo(this.map);
     setTimeout(() => this.map.invalidateSize(), 300);
   }
 
-  obtenerDatos() {
-    this.flotaService.getFlota().subscribe({
-      next: (res) => {
-        this.flota = res.data.map((c: any) => {
-          c.peligro_mecanico = (c.temperatura_motor >= 102 || c.horas_conduccion >= 10);
-          return c;
-        });
-        this.conPeligro = this.flota.filter(c => c.peligro_mecanico).length;
-        this.conAnomalia = this.flota.filter(c => c.anomalia_combustible).length;
-        this.actualizarMarcadores();
-      }
-    });
-
-    this.flotaService.getIncidentes().subscribe({
-      next: (res) => this.incidentes = res.data
-    });
-  }
+  trackById(_index: number, item: any): string { return item.id_camion; }
 
   actualizarMarcadores() {
     if (!this.map) return;
-    this.flota.forEach(camion => {
+    this.flota.forEach((camion: any) => {
       const posActual = L.latLng(camion.ubicacion.lat, camion.ubicacion.lng);
       const posDestino = L.latLng(camion.destino.lat, camion.destino.lng);
-
-      if (this.markers[camion.id_camion]) {
-        this.markers[camion.id_camion].setLatLng(posActual);
-      } else {
-        const marker = L.marker(posActual, { icon: this.customIcon }).addTo(this.map);
-        marker.bindTooltip(`${camion.id_camion}`, { permanent: true, direction: 'top', offset: [0, -30] });
-        this.markers[camion.id_camion] = marker;
-      }
-      this.actualizarRuta(camion.id_camion, posActual, posDestino);
+      if (this.markers[camion.id_camion]) { this.markers[camion.id_camion].setLatLng(posActual); }
+      else { const m = L.marker(posActual, { icon: this.truckIcon }).addTo(this.map); m.bindTooltip(camion.id_camion, { permanent: true, direction: 'top', offset: [0, -30], className: 'etiqueta-camion' }); this.markers[camion.id_camion] = m; }
+      const color = this.routeColors[camion.id_camion] || '#FF6B00';
+      const puntos: L.LatLngTuple[] = [[posActual.lat, posActual.lng], [posDestino.lat, posDestino.lng]];
+      if (this.routes[camion.id_camion]) { this.routes[camion.id_camion].setLatLngs(puntos); }
+      else { this.routes[camion.id_camion] = L.polyline(puntos, { color, opacity: 0.7, weight: 4 }).addTo(this.map); }
     });
   }
 
-  actualizarRuta(id: string, origen: L.LatLng, destino: L.LatLng) {
-    if (this.routes[id]) this.map.removeControl(this.routes[id]);
+  cerrarAlerta(id: number) { this.alertasActivas = this.alertasActivas.filter((a: any) => a.id !== id); }
 
-    const colores: any = {
-      'CAMION-001': '#3498db',
-      'CAMION-002': '#e74c3c',
-      'CAMION-003': '#f1c40f',
-      'CAMION-004': '#2ecc71',
-      'CAMION-005': '#9b59b6'
-    };
-
-    const planSinMarcadores = L.Routing.plan([origen, destino], {
-      createMarker: () => null as any
-    });
-
-    this.routes[id] = L.Routing.control({
-      plan: planSinMarcadores,
-      show: false,
-      addWaypoints: false,
-      fitSelectedRoutes: false,
-      routeWhileDragging: false,
-      lineOptions: {
-        styles: [{ color: colores[id] || '#333', opacity: 0.7, weight: 5 }],
-        extendToWaypoints: true,
-        missingRouteTolerance: 0
-      }
-    }).addTo(this.map);
-  }
-
-  cerrarAlerta(id: number) {
-    this.alertasActivas = this.alertasActivas.filter(a => a.id !== id);
+  obtenerKPIs() {
+    this.apiService.getKPIs().subscribe({ next: (r: any) => { this.kpis = r.data; }, error: (e: any) => console.error('Error KPIs:', e) });
   }
 }

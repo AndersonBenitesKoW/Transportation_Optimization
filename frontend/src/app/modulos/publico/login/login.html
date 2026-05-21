@@ -1,16 +1,63 @@
-<div style="display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #2c3e50; font-family: 'Segoe UI', sans-serif;">
-  <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); width: 320px; text-align: center;">
-      <div style="font-size: 50px; margin-bottom: 10px;">🚛</div>
-      <h2 style="color: #2980b9; margin-bottom: 5px; font-weight: 800;">FleetMind AI</h2>
-      <p style="color: #7f8c8d; font-size: 14px; margin-bottom: 25px;">Portal de Acceso Logístico</p>
-      
-      <input type="text" [(ngModel)]="credenciales.user" placeholder="Usuario (ej. admin o c001)" style="width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #bdc3c7; border-radius: 6px; box-sizing: border-box;">
-      <input type="password" [(ngModel)]="credenciales.pass" placeholder="Contraseña (admin123 o 1234)" style="width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid #bdc3c7; border-radius: 6px; box-sizing: border-box;">
-      
-      <button (click)="iniciarSesion()" style="width: 100%; padding: 12px; background-color: #2980b9; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px; transition: background 0.3s;">
-        Ingresar al Sistema
+<div class="login-page">
+  <div class="login-orb login-orb--1"></div>
+  <div class="login-orb login-orb--2"></div>
+
+  <button (click)="toggleTema()" class="login-theme-btn">
+    <lucide-icon [img]="themeService.isDark() ? sun : moon" class="w-5 h-5"></lucide-icon>
+  </button>
+
+  <div class="login-card">
+    <div class="login-card-brand">
+      <div class="login-logo">
+        <lucide-icon [img]="truck" class="w-8 h-8"></lucide-icon>
+      </div>
+      <h1 class="login-title">FleetMind AI</h1>
+      <p class="login-subtitle">Portal de Acceso Logistico</p>
+    </div>
+
+    <div class="login-card-form">
+      <input type="text" [(ngModel)]="credenciales.email" placeholder="Usuario o Email" [disabled]="cargando"
+             class="login-input" />
+
+      <div class="login-password-wrapper">
+        <input [type]="mostrarPassword ? 'text' : 'password'" [(ngModel)]="credenciales.password"
+               placeholder="Contrasena" [disabled]="cargando" (keyup.enter)="iniciarSesion()"
+               class="login-input login-input--password" />
+        <button type="button" (click)="togglePassword()" class="login-password-toggle">
+          <lucide-icon [img]="mostrarPassword ? eyeOff : eye" class="w-4 h-4"></lucide-icon>
+        </button>
+      </div>
+
+      <button (click)="iniciarSesion()" [disabled]="cargando" class="login-submit">
+        <span *ngIf="!cargando">Ingresar al Sistema</span>
+        <span *ngIf="cargando" class="login-loading">
+          <span class="login-spinner"></span>
+          Ingresando...
+        </span>
       </button>
-      
-      <p *ngIf="errorLogin" style="color: #e74c3c; font-size: 13px; margin-top: 15px; font-weight: bold;">⚠️ {{errorLogin}}</p>
+
+      <p *ngIf="errorLogin" class="login-error">{{ errorLogin }}</p>
+
+      <div class="login-divider">
+        <span class="login-divider-text">Acceso rapido de prueba</span>
+      </div>
+
+      <div class="login-quick-btns">
+        <button (click)="loginRapido('ADMIN')" class="login-quick-btn login-quick-btn--admin">
+          Admin
+        </button>
+        <button (click)="loginRapido('CONDUCTOR')" class="login-quick-btn login-quick-btn--conductor">
+          Conductor
+        </button>
+      </div>
+      <p class="login-quick-hint">O usa: admin / admin123</p>
+    </div>
+
+    <div class="login-card-footer">
+      <p class="login-footer-text">
+        No tienes cuenta?
+        <a routerLink="/register" class="login-footer-link">Registrate aqui</a>
+      </p>
+    </div>
   </div>
 </div>

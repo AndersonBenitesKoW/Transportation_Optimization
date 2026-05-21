@@ -1,24 +1,67 @@
 <div class="admin-layout">
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <h2 class="sidebar-logo">FleetMind AI</h2>
-      <p class="sidebar-role">Panel Administrativo</p>
+  <aside class="admin-sidebar"
+         [class.admin-sidebar--collapsed]="sidebarColapsado">
+    <div class="admin-sidebar-header">
+      <div class="admin-sidebar-logo">FM</div>
+      <div class="admin-sidebar-brand" [class.admin-sidebar-brand--hidden]="sidebarColapsado">
+        <h2 class="admin-sidebar-title">FleetMind AI</h2>
+        <p class="admin-sidebar-subtitle">Panel Admin</p>
+      </div>
     </div>
-    <nav class="sidebar-nav">
-      <a routerLink="/admin/dashboard" class="sidebar-link" routerLinkActive="sidebar-link--active" [routerLinkActiveOptions]="{exact: true}">
-        <span class="sidebar-icon">📊</span> Dashboard
+
+    <button (click)="toggleSidebar()" class="admin-sidebar-toggle">
+      <lucide-icon [img]="sidebarColapsado ? chevronRight : chevronLeft" class="w-3 h-3"></lucide-icon>
+    </button>
+
+    <nav class="admin-sidebar-nav">
+      <a routerLink="/admin/dashboard"
+         routerLinkActive="admin-sidebar-link--active"
+         class="admin-sidebar-link">
+        <lucide-icon [img]="layoutDashboard" class="w-5 h-5"></lucide-icon>
+        <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Dashboard</span>
       </a>
-      <a routerLink="/admin/unidades" class="sidebar-link" routerLinkActive="sidebar-link--active">
-        <span class="sidebar-icon">🚛</span> Unidades
+      <a routerLink="/admin/unidades"
+         routerLinkActive="admin-sidebar-link--active"
+         class="admin-sidebar-link">
+        <lucide-icon [img]="truck" class="w-5 h-5"></lucide-icon>
+        <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Unidades</span>
+      </a>
+      <a routerLink="/admin/conductores"
+         routerLinkActive="admin-sidebar-link--active"
+         class="admin-sidebar-link">
+        <lucide-icon [img]="users" class="w-5 h-5"></lucide-icon>
+        <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Conductores</span>
+      </a>
+      <a routerLink="/admin/alertas"
+         routerLinkActive="admin-sidebar-link--active"
+         class="admin-sidebar-link">
+        <lucide-icon [img]="bell" class="w-5 h-5"></lucide-icon>
+        <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Alertas</span>
       </a>
     </nav>
-    <div class="sidebar-footer">
-      <button (click)="cerrarSesion()" class="sidebar-logout">
-        <span class="sidebar-icon">👤</span> Cerrar Sesión
+
+    <div class="admin-sidebar-footer">
+      <button (click)="toggleTema()" class="admin-sidebar-link">
+        <lucide-icon [img]="themeService.isDark() ? sun : moon" class="w-5 h-5"></lucide-icon>
+        <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Tema</span>
+      </button>
+      <div class="admin-sidebar-profile">
+        <div class="admin-sidebar-avatar">{{ iniciales }}</div>
+        <div [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">
+          <p class="admin-sidebar-username">{{ usuarioActual?.nombre || 'Admin' }}</p>
+          <p class="admin-sidebar-rol">Administrador</p>
+        </div>
+      </div>
+      <button (click)="cerrarSesion()" class="admin-sidebar-link admin-sidebar-link--danger">
+        <lucide-icon [img]="logOut" class="w-5 h-5"></lucide-icon>
+        <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Cerrar Sesion</span>
       </button>
     </div>
   </aside>
-  <main class="admin-content">
+
+  <main class="admin-main"
+        [class.admin-main--expanded]="!sidebarColapsado"
+        [class.admin-main--collapsed]="sidebarColapsado">
     <router-outlet></router-outlet>
   </main>
 </div>

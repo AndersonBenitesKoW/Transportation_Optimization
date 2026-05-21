@@ -1,15 +1,28 @@
-<div class="unidades-page">
-  <header class="unidades-header">
+<div class="crud-page">
+  <div class="crud-header">
     <div>
-      <h1 class="unidades-title">Gestión de Unidades</h1>
-      <p class="unidades-subtitle">{{ unidades.length }} camiones registrados</p>
+      <h1 class="crud-title">
+        <lucide-icon [img]="truck" class="w-6 h-6"></lucide-icon>
+        Gestion de Unidades
+      </h1>
+      <p class="crud-subtitle">{{ unidades.length }} camiones registrados</p>
     </div>
-    <button class="btn-unidades btn-unidades--primary" (click)="abrirNuevo()">+ Nueva Unidad</button>
-  </header>
+    <button (click)="abrirNuevo()" [disabled]="cargando" class="crud-btn-primary">
+      <lucide-icon [img]="plus" class="w-4 h-4"></lucide-icon>
+      Nueva Unidad
+    </button>
+  </div>
 
-  <div class="unidades-filtro">
-    <label class="filtro-label">Filtrar por estado:</label>
-    <select [(ngModel)]="filtrarEstado" class="filtro-select">
+  <div *ngIf="error" class="crud-error">{{ error }}</div>
+
+  <div *ngIf="cargando && unidades.length === 0" class="crud-loading">
+    <div class="crud-spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
+
+  <div class="crud-filter">
+    <label class="crud-filter-label">Filtrar por estado:</label>
+    <select [(ngModel)]="filtrarEstado" class="crud-select">
       <option value="Todas">Todas</option>
       <option value="En ruta">En ruta</option>
       <option value="Disponible">Disponible</option>
@@ -18,81 +31,113 @@
     </select>
   </div>
 
-  <div class="unidades-table-wrapper">
-    <table class="unidades-table">
+  <div class="crud-table-wrapper">
+    <table class="crud-table">
       <thead>
         <tr>
           <th>ID</th>
-          <th>Vehículo</th>
-          <th>Conductor</th>
           <th>Placa</th>
+          <th>Marca/Modelo</th>
+          <th>Conductor</th>
           <th>Tanque (L)</th>
-          <th>Edad Motor</th>
+          <th>Kilometraje</th>
           <th>Estado</th>
           <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let u of filtradas">
-          <td class="td-id">{{ u.id_camion }}</td>
-          <td><strong>{{ u.placa }}</strong></td>
-          <td>{{ u.conductor }}</td>
-          <td>{{ u.capacidad_tanque }}L</td>
-          <td>{{ u.edad_motor_meses }} meses</td>
+        <tr *ngFor="let u of filtradas" class="crud-row">
+          <td class="crud-cell-id">{{ u.id_vehiculo }}</td>
+          <td class="crud-cell-bold">{{ u.placa }}</td>
+          <td>{{ u.marca }} {{ u.modelo }}</td>
+          <td>{{ getNombreConductor(u.conductor_asignado) }}</td>
+          <td>{{ u.capacidad_tanque_L }}L</td>
+          <td>{{ u.kilometraje_actual | number:'1.0-0' }} km</td>
           <td>
-            <span class="badge" [ngClass]="{
-              'badge--ruta': u.estado === 'En ruta',
-              'badge--disponible': u.estado === 'Disponible',
-              'badge--taller': u.estado === 'Taller',
-              'badge--inactivo': u.estado === 'Inactivo'
-            }">{{ u.estado }}</span>
+            <span class="badge"
+                  [class.badge--ruta]="u.estado === 'En ruta'"
+                  [class.badge--disponible]="u.estado === 'Disponible'"
+                  [class.badge--taller]="u.estado === 'Taller'"
+                  [class.badge--inactivo]="u.estado === 'Inactivo'">{{ u.estado }}</span>
           </td>
-          <td class="td-acciones">
-            <button class="btn-accion btn-accion--editar" (click)="abrirEditar(u)" title="Editar">✏️</button>
-            <button class="btn-accion btn-accion--eliminar" (click)="confirmarEliminar(u.id)" title="Eliminar">🗑️</button>
+          <td>
+            <div class="crud-actions">
+              <button (click)="abrirEditar(u)" class="crud-btn-icon crud-btn-icon--edit" [disabled]="cargando">
+                <lucide-icon [img]="pencil" class="w-4 h-4"></lucide-icon>
+              </button>
+              <button (click)="confirmarEliminar(u.id_vehiculo)" class="crud-btn-icon crud-btn-icon--delete" [disabled]="cargando">
+                <lucide-icon [img]="trash2" class="w-4 h-4"></lucide-icon>
+              </button>
+            </div>
           </td>
-        </tr>
-        <tr *ngIf="filtradas.length === 0">
-          <td colspan="8" class="td-vacio">No hay unidades con ese estado.</td>
         </tr>
       </tbody>
     </table>
   </div>
 
-  <!-- MODAL CREAR / EDITAR -->
-  <div class="modal-overlay" *ngIf="modalAbierto" (click)="cerrarModal()">
+  <!-- MODAL FORM -->
+  <div *ngIf="modalAbierto" class="modal-overlay" (click)="cerrarModal()">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2 class="modal-title">{{ editando ? 'Editar Unidad' : 'Nueva Unidad' }}</h2>
-        <button class="modal-close" (click)="cerrarModal()">&times;</button>
+        <button (click)="cerrarModal()" class="modal-close">&times;</button>
       </div>
       <div class="modal-body">
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">ID del Camión</label>
-            <input class="form-input" type="text" [(ngModel)]="form.id_camion" placeholder="Ej. CAMION-008" />
+            <label class="form-label">ID Vehiculo *</label>
+            <input class="form-input" [disabled]="editando" [(ngModel)]="form.id_vehiculo" placeholder="CAMION-008" />
           </div>
           <div class="form-group">
-            <label class="form-label">Placa</label>
-            <input class="form-input" type="text" [(ngModel)]="form.placa" placeholder="Ej. ABC-123" />
+            <label class="form-label">Placa *</label>
+            <input class="form-input" [(ngModel)]="form.placa" placeholder="ABC-123" />
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Conductor Asignado</label>
-          <input class="form-input" type="text" [(ngModel)]="form.conductor" placeholder="Nombre del conductor" />
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Capacidad Tanque (L)</label>
-            <input class="form-input" type="number" [(ngModel)]="form.capacidad_tanque" min="100" max="2000" />
+            <label class="form-label">Marca *</label>
+            <input class="form-input" [(ngModel)]="form.marca" placeholder="Volvo" />
           </div>
           <div class="form-group">
-            <label class="form-label">Edad del Motor (meses)</label>
-            <input class="form-input" type="number" [(ngModel)]="form.edad_motor_meses" min="0" max="240" />
+            <label class="form-label">Modelo *</label>
+            <input class="form-input" [(ngModel)]="form.modelo" placeholder="FH16" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">A&ntilde;o *</label>
+            <input type="number" class="form-input" [(ngModel)]="form.anio" min="2000" max="2030" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Conductor *</label>
+            <select class="form-input" [(ngModel)]="form.conductor_asignado">
+              <option value="">Seleccionar conductor</option>
+              <option *ngFor="let c of conductores" [value]="c.id_conductor">{{ c.nombre }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Capacidad Tanque (L) *</label>
+            <input type="number" class="form-input" [(ngModel)]="form.capacidad_tanque_L" min="100" max="2000" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Carga (ton) *</label>
+            <input type="number" class="form-input" [(ngModel)]="form.capacidad_carga_ton" min="5" max="50" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Kilometraje *</label>
+            <input type="number" class="form-input" [(ngModel)]="form.kilometraje_actual" min="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Motor (meses) *</label>
+            <input type="number" class="form-input" [(ngModel)]="form.edad_motor_meses" min="0" max="240" />
           </div>
         </div>
         <div class="form-group">
-          <label class="form-label">Estado</label>
+          <label class="form-label">Estado *</label>
           <select class="form-input" [(ngModel)]="form.estado">
             <option value="En ruta">En ruta</option>
             <option value="Disponible">Disponible</option>
@@ -102,25 +147,25 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-unidades btn-unidades--cancel" (click)="cerrarModal()">Cancelar</button>
-        <button class="btn-unidades btn-unidades--primary" (click)="guardar()">{{ editando ? 'Actualizar' : 'Guardar' }}</button>
+        <button (click)="cerrarModal()" class="btn btn--ghost" [disabled]="cargando">Cancelar</button>
+        <button (click)="guardar()" class="btn btn--primary" [disabled]="cargando">{{ cargando ? 'Guardando...' : (editando ? 'Actualizar' : 'Guardar') }}</button>
       </div>
     </div>
   </div>
 
-  <!-- MODAL CONFIRMAR ELIMINAR -->
-  <div class="modal-overlay" *ngIf="modalEliminar" (click)="cancelarEliminar()">
+  <!-- DELETE MODAL -->
+  <div *ngIf="modalEliminar" class="modal-overlay" (click)="cancelarEliminar()">
     <div class="modal modal--sm" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2 class="modal-title">Confirmar Eliminación</h2>
-        <button class="modal-close" (click)="cancelarEliminar()">&times;</button>
+        <h2 class="modal-title">Confirmar Eliminacion</h2>
+        <button (click)="cancelarEliminar()" class="modal-close">&times;</button>
       </div>
       <div class="modal-body">
-        <p class="eliminar-texto">¿Estás seguro de eliminar esta unidad? Esta acción no se puede deshacer.</p>
+        <p class="modal-text">Estas seguro de eliminar esta unidad? Esta accion no se puede deshacer.</p>
       </div>
       <div class="modal-footer">
-        <button class="btn-unidades btn-unidades--cancel" (click)="cancelarEliminar()">Cancelar</button>
-        <button class="btn-unidades btn-unidades--danger" (click)="ejecutarEliminar()">Eliminar</button>
+        <button (click)="cancelarEliminar()" class="btn btn--ghost">Cancelar</button>
+        <button (click)="ejecutarEliminar()" class="btn btn--danger">Eliminar</button>
       </div>
     </div>
   </div>
