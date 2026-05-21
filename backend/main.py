@@ -4,15 +4,9 @@ from pydantic import BaseModel
 from database import db_manager
 import joblib
 import pandas as pd
-<<<<<<< HEAD
-from google import genai
-import warnings
-from datetime import datetime
-=======
 import google.generativeai as genai
 import warnings
 from datetime import datetime, timedelta
->>>>>>> origin/main
 from routing import routing_engine # <-- Importamos el motor OSRM
 import json
 
@@ -32,11 +26,7 @@ db = db_manager.get_db()
 
 # --- CONFIGURACIÓN DE IA GENERATIVA ---
 GOOGLE_API_KEY = "AIzaSyCWykOfNzb50jHD8I1M85wRCNhRRipiHDw" # ADVERTENCIA: Por seguridad, rota esta clave al terminar tu proyecto
-<<<<<<< HEAD
-client = genai.Client(api_key=GOOGLE_API_KEY)
-=======
 genai.configure(api_key=GOOGLE_API_KEY)
->>>>>>> origin/main
 
 # --- CARGA DE MODELOS LOCALES ---
 try:
@@ -77,10 +67,7 @@ def obtener_flota():
             if 'ultima_actualizacion' in datos_camion:
                 datos_camion['ultima_actualizacion'] = datos_camion['ultima_actualizacion'].isoformat()
             
-<<<<<<< HEAD
-=======
             # PREDICCIÓN DE FALLAS
->>>>>>> origin/main
             if modelo_fallas:
                 input_fallas = pd.DataFrame([{
                     "kilometraje": datos_camion.get("kilometraje", 0),
@@ -89,10 +76,6 @@ def obtener_flota():
                     "temperatura_motor": datos_camion.get("temperatura_motor", 0)
                 }])
                 pred = modelo_fallas.predict(input_fallas)[0]
-<<<<<<< HEAD
-                datos_camion["alerta_predictiva"] = "⚠️ Peligro de Falla" if pred == 1 else "✅ Operación Segura"
-
-=======
                 prob = modelo_fallas.predict_proba(input_fallas)[0]
                 probabilidad = float(prob[1]) if pred == 1 else float(prob[0])
                 
@@ -120,7 +103,6 @@ def obtener_flota():
                 db.collection('predicciones').add(prediccion_doc)
 
             # DETECCIÓN DE ANOMALÍAS
->>>>>>> origin/main
             if modelo_anomalias:
                 consumo_minuto = datos_camion.get("consumo_instante", 0) 
                 input_anomalias = pd.DataFrame([{
@@ -129,8 +111,6 @@ def obtener_flota():
                 }])
                 es_anomalo = modelo_anomalias.predict(input_anomalias)[0]
                 datos_camion["anomalia_combustible"] = True if es_anomalo == -1 else False
-<<<<<<< HEAD
-=======
                 
                 # GUARDAR PREDICCIÓN DE ANOMALÍA
                 if es_anomalo == -1:
@@ -150,7 +130,6 @@ def obtener_flota():
                         "version_modelo": "1.0"
                     }
                     db.collection('predicciones').add(prediccion_anomalia)
->>>>>>> origin/main
             
             flota.append(datos_camion)
         return {"status": "success", "data": flota}
@@ -202,14 +181,8 @@ async def procesar_chat(req: MensajeChat):
             Responde ÚNICAMENTE en JSON: {{"quiere_ir": true/false, "destino": "nombre en minusculas" o null}}
             """
             
-<<<<<<< HEAD
-            resp_intencion = client.models.generate_content(
-                model="gemini-3-flash-preview", contents=prompt_intencion
-            ).text
-=======
             model = genai.GenerativeModel('gemini-pro')
             resp_intencion = model.generate_content(prompt_intencion).text
->>>>>>> origin/main
             
             try:
                 # Limpiamos el texto por si Gemini añade marcadores de bloque de código
@@ -277,15 +250,8 @@ async def procesar_chat(req: MensajeChat):
             system_prompt = "Eres FleetMind AI, analista logístico. No uses Markdown."
 
         # --- 3. RESPUESTA FINAL ---
-<<<<<<< HEAD
-        response = client.models.generate_content(
-            model="gemini-3-flash-preview", 
-            contents=f"{system_prompt}\n\nPregunta: {req.mensaje}"
-        )
-=======
         model = genai.GenerativeModel('gemini-pro')
         response = model.generate_content(f"{system_prompt}\n\nPregunta: {req.mensaje}")
->>>>>>> origin/main
         
         # Guardamos en base de datos SOLO si la IA aprobó la viabilidad
         if actualizacion_db:
@@ -297,9 +263,6 @@ async def procesar_chat(req: MensajeChat):
     except Exception as e:
         print(f"❌ Error Chatbot: {e}")
         return {"respuesta": "Error de conexión con IA."}
-<<<<<<< HEAD
-    
-=======
     
 
 # ============================================================================
@@ -764,4 +727,3 @@ def obtener_kpis():
     except Exception as e:
         print(f"Error calculando KPIs: {e}")
         raise HTTPException(status_code=500, detail=str(e))
->>>>>>> origin/main
