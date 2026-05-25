@@ -401,6 +401,20 @@ class VehiculoUpdate(BaseModel):
     estado: str | None = None
     conductor_asignado: str | None = None
 
+class ComponenteData(BaseModel):
+    kilometraje_acumulado: float = 0.0
+    tiempo_vida: float = 0.0
+    ultima_reparacion: datetime | None = None
+    proxima_reparacion: datetime | None = None
+
+class ComponentesVehiculo(BaseModel):
+    motor: ComponenteData | None = None
+    aceite: ComponenteData | None = None
+    neumaticos: ComponenteData | None = None
+    zapatas: ComponenteData | None = None
+    mangueras: ComponenteData | None = None
+    fajas: ComponenteData | None = None
+
 class ConductorCreate(BaseModel):
     id_conductor: str
     nombre: str
@@ -418,6 +432,20 @@ class ConductorUpdate(BaseModel):
     experiencia_anios: int | None = None
     calificacion: float | None = None
     estado: str | None = None
+
+class ViajeIniciar(BaseModel):
+    id_vehiculo: str
+    origen_nombre: str
+    origen_lat: float
+    origen_lng: float
+    destino_nombre: str
+    destino_lat: float
+    destino_lng: float
+    km_inicio: float
+
+class ViajeFinalizar(BaseModel):
+    id_vehiculo: str
+    km_fin: float
 
 # ============================================================================
 # CRUD VEHÍCULOS
@@ -535,6 +563,106 @@ def eliminar_vehiculo(id_vehiculo: str):
         return {
             "status": "success",
             "mensaje": f"Vehículo {id_vehiculo} eliminado exitosamente"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# CRUD COMPONENTES (SUBCONLECCIÓN vehiculos/{id}/componentes)
+# ============================================================================
+
+@app.get("/api/vehiculos/{id_vehiculo}/componentes")
+def obtener_componentes(id_vehiculo: str):
+    try:
+        doc_ref = db.collection('vehiculos').document(id_vehiculo)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+
+        componentes_ref = db.collection('vehiculos').document(id_vehiculo).collection('componentes')
+        docs = componentes_ref.stream()
+
+        componentes = {}
+        for doc in docs:
+            data = doc.to_dict()
+            if 'ultima_reparacion' in data and data['ultima_reparacion']:
+                data['ultima_reparacion'] = data['ultima_reparacion'].isoformat()
+            if 'proxima_reparacion' in data and data['proxima_reparacion']:
+                data['proxima_reparacion'] = data['proxima_reparacion'].isoformat()
+            componentes[doc.id] = data
+
+        return {"status": "success", "data": componentes}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/vehiculos/{id_vehiculo}/componentes/{nombre_componente}")
+def obtener_componente(id_vehiculo: str, nombre_componente: str):
+    try:
+        doc_ref = db.collection('vehiculos').document(id_vehiculo)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+
+        comp_ref = db.collection('vehiculos').document(id_vehiculo).collection('componentes').document(nombre_componente)
+        doc = comp_ref.get()
+
+        if not doc.exists:
+            raise HTTPException(status_code=404, detail=f"Componente '{nombre_componente}' no encontrado")
+
+        data = doc.to_dict()
+        if 'ultima_reparacion' in data and data['ultima_reparacion']:
+            data['ultima_reparacion'] = data['ultima_reparacion'].isoformat()
+        if 'proxima_reparacion' in data and data['proxima_reparacion']:
+            data['proxima_reparacion'] = data['proxima_reparacion'].isoformat()
+
+        return {"status": "success", "data": data}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/vehiculos/{id_vehiculo}/componentes")
+def actualizar_componentes(id_vehiculo: str, componentes: dict[str, ComponenteData]):
+    try:
+        doc_ref = db.collection('vehiculos').document(id_vehiculo)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+
+        actualizados = []
+
+        for nombre, data in componentes.items():
+            if data is not None:
+                comp_ref = db.collection('vehiculos').document(id_vehiculo).collection('componentes').document(nombre)
+                comp_ref.set(data.model_dump(), merge=True)
+                actualizados.append(nombre)
+
+        return {
+            "status": "success",
+            "mensaje": f"Componentes actualizados: {', '.join(actualizados)}" if actualizados else "Sin cambios"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/vehiculos/{id_vehiculo}/componentes/{nombre_componente}")
+def eliminar_componente(id_vehiculo: str, nombre_componente: str):
+    try:
+        doc_ref = db.collection('vehiculos').document(id_vehiculo)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Vehículo no encontrado")
+
+        comp_ref = db.collection('vehiculos').document(id_vehiculo).collection('componentes').document(nombre_componente)
+        if not comp_ref.get().exists:
+            raise HTTPException(status_code=404, detail=f"Componente '{nombre_componente}' no encontrado")
+
+        comp_ref.delete()
+
+        return {
+            "status": "success",
+            "mensaje": f"Componente '{nombre_componente}' eliminado"
         }
     except HTTPException:
         raise
@@ -832,4 +960,122 @@ def obtener_kpis():
         return {"status": "success", "data": kpis}
     except Exception as e:
         print(f"Error calculando KPIs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# CRUD VIAJES
+# ============================================================================
+
+@app.post("/api/viajes/iniciar")
+def iniciar_viaje(viaje: ViajeIniciar):
+    try:
+        tele_ref = db.collection('telemetria_flota').document(viaje.id_vehiculo)
+        update_data = {
+            "viaje_activo": True,
+            "km_inicio_viaje": viaje.km_inicio,
+            "origen_viaje": {"nombre": viaje.origen_nombre, "lat": viaje.origen_lat, "lng": viaje.origen_lng},
+            "destino_viaje": {"nombre": viaje.destino_nombre, "lat": viaje.destino_lat, "lng": viaje.destino_lng},
+            "fecha_inicio_viaje": datetime.now(),
+            "tipo_viaje": "manual",
+            "mision": f"Viaje a {viaje.destino_nombre}"
+        }
+        tele_ref.set(update_data, merge=True)
+
+        vehiculo_ref = db.collection('vehiculos').document(viaje.id_vehiculo)
+        if vehiculo_ref.get().exists:
+            vehiculo_ref.update({"estado": "En ruta", "kilometraje_actual": viaje.km_inicio})
+
+        return {"status": "success", "mensaje": f"Viaje iniciado para {viaje.id_vehiculo}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/viajes/finalizar")
+def finalizar_viaje(viaje: ViajeFinalizar):
+    try:
+        tele_ref = db.collection('telemetria_flota').document(viaje.id_vehiculo)
+        tele_doc = tele_ref.get()
+        if not tele_doc.exists:
+            raise HTTPException(status_code=404, detail="No hay telemetria para este vehiculo")
+
+        tele_data = tele_doc.to_dict()
+        if not tele_data.get('viaje_activo'):
+            raise HTTPException(status_code=400, detail="No hay viaje activo para este vehiculo")
+
+        km_inicio = tele_data.get('km_inicio_viaje', 0)
+        km_recorridos = viaje.km_fin - km_inicio
+        origen = tele_data.get('origen_viaje', {})
+        destino = tele_data.get('destino_viaje', {})
+
+        km_osrm = 0.0
+        try:
+            _, dist = routing_engine.obtener_ruta_optima(
+                origen.get('lat', 0), origen.get('lng', 0),
+                destino.get('lat', 0), destino.get('lng', 0)
+            )
+            km_osrm = round(dist, 2)
+        except:
+            pass
+
+        desviacion = round(km_recorridos - km_osrm, 2)
+
+        viaje_doc = {
+            "id_vehiculo": viaje.id_vehiculo,
+            "conductor": tele_data.get('conductor_asignado', {}).get('nombre', ''),
+            "id_conductor": tele_data.get('conductor_asignado', {}).get('id_conductor', ''),
+            "origen_viaje": origen,
+            "destino_viaje": destino,
+            "destino_nombre": destino.get('nombre', ''),
+            "km_inicio": km_inicio,
+            "km_fin": viaje.km_fin,
+            "km_recorridos": round(km_recorridos, 2),
+            "km_osrm": km_osrm,
+            "desviacion_km": desviacion,
+            "distancia_recorrida_km": round(km_recorridos, 2),
+            "combustible_total_consumido_L": 0,
+            "fecha_inicio_viaje": tele_data.get('fecha_inicio_viaje', datetime.now()),
+            "fecha_fin_viaje": datetime.now(),
+            "fecha_viaje": datetime.now(),
+            "tipo_viaje": tele_data.get('tipo_viaje', 'manual')
+        }
+        db.collection('historial_viajes').add(viaje_doc)
+
+        tele_ref.update({"viaje_activo": False})
+
+        vehiculo_ref = db.collection('vehiculos').document(viaje.id_vehiculo)
+        if vehiculo_ref.get().exists:
+            vehiculo_ref.update({"kilometraje_actual": viaje.km_fin, "estado": "Disponible"})
+
+        return {
+            "status": "success",
+            "mensaje": f"Viaje finalizado. Km recorridos: {round(km_recorridos, 2)}",
+            "data": viaje_doc
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/viajes")
+def listar_viajes(id_vehiculo: str = None):
+    try:
+        viajes_ref = db.collection('historial_viajes')
+        if id_vehiculo:
+            viajes_ref = viajes_ref.where('id_vehiculo', '==', id_vehiculo)
+        viajes_ref = viajes_ref.order_by('fecha_viaje', direction='DESCENDING').limit(100)
+        docs = viajes_ref.stream()
+
+        viajes = []
+        for doc in docs:
+            viaje = doc.to_dict()
+            viaje['id'] = doc.id
+            if 'fecha_viaje' in viaje:
+                viaje['fecha_viaje'] = viaje['fecha_viaje'].isoformat()
+            if 'fecha_inicio_viaje' in viaje:
+                viaje['fecha_inicio_viaje'] = viaje['fecha_inicio_viaje'].isoformat()
+            if 'fecha_fin_viaje' in viaje:
+                viaje['fecha_fin_viaje'] = viaje['fecha_fin_viaje'].isoformat()
+            viajes.append(viaje)
+
+        return {"status": "success", "data": viajes}
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

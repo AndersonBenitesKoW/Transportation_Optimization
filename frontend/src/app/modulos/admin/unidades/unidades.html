@@ -31,124 +31,167 @@
     </select>
   </div>
 
-  <div class="crud-table-wrapper">
-    <table class="crud-table">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Placa</th>
-          <th>Marca/Modelo</th>
-          <th>Conductor</th>
-          <th>Tanque (L)</th>
-          <th>Kilometraje</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let u of filtradas" class="crud-row">
-          <td class="crud-cell-id">{{ u.id_vehiculo }}</td>
-          <td class="crud-cell-bold">{{ u.placa }}</td>
-          <td>{{ u.marca }} {{ u.modelo }}</td>
-          <td>{{ getNombreConductor(u.conductor_asignado) }}</td>
-          <td>{{ u.capacidad_tanque_L }}L</td>
-          <td>{{ u.kilometraje_actual | number:'1.0-0' }} km</td>
-          <td>
-            <span class="badge"
-                  [class.badge--ruta]="u.estado === 'En ruta'"
-                  [class.badge--disponible]="u.estado === 'Disponible'"
-                  [class.badge--taller]="u.estado === 'Taller'"
-                  [class.badge--inactivo]="u.estado === 'Inactivo'">{{ u.estado }}</span>
-          </td>
-          <td>
-            <div class="crud-actions">
-              <button (click)="abrirEditar(u)" class="crud-btn-icon crud-btn-icon--edit" [disabled]="cargando">
-                <lucide-icon [img]="pencil" class="w-4 h-4"></lucide-icon>
-              </button>
-              <button (click)="confirmarEliminar(u.id_vehiculo)" class="crud-btn-icon crud-btn-icon--delete" [disabled]="cargando">
-                <lucide-icon [img]="trash2" class="w-4 h-4"></lucide-icon>
-              </button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="cards-grid">
+    <div *ngFor="let u of filtradas" class="card">
+      <div class="card-header">
+        <span class="card-id">{{ u.id_vehiculo }}</span>
+        <span class="badge"
+              [class.badge--ruta]="u.estado === 'En ruta'"
+              [class.badge--disponible]="u.estado === 'Disponible'"
+              [class.badge--taller]="u.estado === 'Taller'"
+              [class.badge--inactivo]="u.estado === 'Inactivo'">{{ u.estado }}</span>
+      </div>
+      <div class="card-row"><span>Placa</span><span>{{ u.placa }}</span></div>
+      <div class="card-row"><span>Marca / Modelo</span><span>{{ u.marca }} {{ u.modelo }} ({{ u.anio }})</span></div>
+      <div class="card-row"><span>Conductor</span><span>{{ getNombreConductor(u.conductor_asignado) }}</span></div>
+      <div class="card-row"><span>Tanque</span><span>{{ u.capacidad_tanque_L }} L</span></div>
+      <div class="card-row"><span>Kilometraje</span><span>{{ u.kilometraje_actual | number:'1.0-0' }} km</span></div>
+      <div class="card-footer">
+        <button (click)="abrirEditar(u)" class="card-btn-icon card-btn-edit" [disabled]="cargando">
+          <lucide-icon [img]="pencil" class="w-4 h-4"></lucide-icon>
+          Editar
+        </button>
+        <button (click)="abrirConfigurar(u)" class="card-btn-icon card-btn-config" [disabled]="cargando">
+          <lucide-icon [img]="settings" class="w-4 h-4"></lucide-icon>
+          Componentes
+        </button>
+        <button (click)="confirmarEliminar(u.id_vehiculo)" class="card-btn-icon card-btn-delete" [disabled]="cargando">
+          <lucide-icon [img]="trash2" class="w-4 h-4"></lucide-icon>
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL FORM -->
   <div *ngIf="modalAbierto" class="modal-overlay" (click)="cerrarModal()">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h2 class="modal-title">{{ editando ? 'Editar Unidad' : 'Nueva Unidad' }}</h2>
+        <h2 class="modal-title">{{ modo === 'crear' ? 'Nueva Unidad' : (modo === 'editar' ? 'Editar Unidad' : 'Configurar Componentes') }}</h2>
         <button (click)="cerrarModal()" class="modal-close">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">ID Vehiculo *</label>
-            <input class="form-input" [disabled]="editando" [(ngModel)]="form.id_vehiculo" placeholder="CAMION-008" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Placa *</label>
-            <input class="form-input" [(ngModel)]="form.placa" placeholder="ABC-123" />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Marca *</label>
-            <input class="form-input" [(ngModel)]="form.marca" placeholder="Volvo" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Modelo *</label>
-            <input class="form-input" [(ngModel)]="form.modelo" placeholder="FH16" />
+        <!-- TABS dinámicas -->
+        <div class="tabs">
+          <ng-container *ngFor="let t of NOMBRES_TABS">
+            <button (click)="cambiarTab(t.id)"
+                    class="tab" [class.tab--active]="tabActiva === t.id">
+              {{ t.label }}
+              <span *ngIf="t.id !== 'datos_base' && modo !== 'componentes'" (click)="removerComponente(t.id); $event.stopPropagation()" class="tab-close">&times;</span>
+            </button>
+          </ng-container>
+          <div *ngIf="modo !== 'componentes'" class="tab tab--add">
+            <button *ngIf="!mostrandoInputNuevo" (click)="activarInputNuevo()" class="tab-add-btn" title="Agregar componente">+</button>
+            <input *ngIf="mostrandoInputNuevo" id="input-nuevo-componente"
+                   class="tab-add-input" [(ngModel)]="nombreNuevoComponente"
+                   (keyup.enter)="agregarComponente()"
+                   (blur)="mostrandoInputNuevo = false"
+                   placeholder="nombre..." />
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">A&ntilde;o *</label>
-            <input type="number" class="form-input" [(ngModel)]="form.anio" min="2000" max="2030" />
+
+        <!-- TAB: Datos Base -->
+        <div *ngIf="tabActiva === 'datos_base'" class="tab-content">
+          <p class="tab-section-title">Datos del Vehiculo</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">ID Vehiculo *</label>
+              <input class="form-input" [disabled]="modo !== 'crear'" [(ngModel)]="form.id_vehiculo" placeholder="CAMION-008"
+                     required pattern="[A-Za-z0-9\-]+" title="Solo letras, numeros y guiones" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Placa *</label>
+              <input class="form-input" [(ngModel)]="form.placa" placeholder="ABC-123"
+                     required pattern="[A-Za-z0-9\-]+" title="Solo letras, numeros y guiones" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Marca *</label>
+              <input class="form-input" [(ngModel)]="form.marca" placeholder="Volvo"
+                     required pattern="[A-Za-zÀ-ÿ\s]+" title="Solo letras y espacios" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Modelo *</label>
+              <input class="form-input" [(ngModel)]="form.modelo" placeholder="FH16"
+                     required pattern="[A-Za-z0-9\s\-]+" title="Solo letras, numeros, espacios y guiones" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">A&ntilde;o *</label>
+              <input type="number" class="form-input" [(ngModel)]="form.anio" min="2000" max="2030" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Conductor *</label>
+              <select class="form-input" [(ngModel)]="form.conductor_asignado">
+                <option value="">Seleccionar conductor</option>
+                <option *ngFor="let c of conductores" [value]="c.id_conductor">{{ c.nombre }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Capacidad Tanque (L) *</label>
+              <input type="number" class="form-input" [(ngModel)]="form.capacidad_tanque_L" min="100" max="2000" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Carga (ton) *</label>
+              <input type="number" class="form-input" [(ngModel)]="form.capacidad_carga_ton" min="5" max="50" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Kilometraje *</label>
+              <input type="number" class="form-input" [(ngModel)]="form.kilometraje_actual" min="0" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Motor (meses) *</label>
+              <input type="number" class="form-input" [(ngModel)]="form.edad_motor_meses" min="0" max="240" />
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Conductor *</label>
-            <select class="form-input" [(ngModel)]="form.conductor_asignado">
-              <option value="">Seleccionar conductor</option>
-              <option *ngFor="let c of conductores" [value]="c.id_conductor">{{ c.nombre }}</option>
+            <label class="form-label">Estado *</label>
+            <select class="form-input" [(ngModel)]="form.estado">
+              <option value="En ruta">En ruta</option>
+              <option value="Disponible">Disponible</option>
+              <option value="Taller">Taller</option>
+              <option value="Inactivo">Inactivo</option>
             </select>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Capacidad Tanque (L) *</label>
-            <input type="number" class="form-input" [(ngModel)]="form.capacidad_tanque_L" min="100" max="2000" />
+
+        <!-- TABS: Componentes dinámicos -->
+        <ng-container *ngFor="let comp of nombresComponentes">
+          <div *ngIf="tabActiva === comp" class="tab-content">
+            <p class="tab-section-title">Componente: {{ capitalizar(comp) }}</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Kilometraje Acumulado (km)</label>
+                <input type="number" class="form-input" [(ngModel)]="componentes[comp].kilometraje_acumulado" min="0" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tiempo de Vida (km)</label>
+                <input type="number" class="form-input" [(ngModel)]="componentes[comp].tiempo_vida" min="0" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Ultima Reparacion</label>
+                <input type="date" class="form-input" [ngModel]="componentes[comp].ultima_reparacion | date:'yyyy-MM-dd'"
+                       (ngModelChange)="componentes[comp].ultima_reparacion = $event" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Proxima Reparacion</label>
+                <input type="date" class="form-input" [ngModel]="componentes[comp].proxima_reparacion | date:'yyyy-MM-dd'"
+                       (ngModelChange)="componentes[comp].proxima_reparacion = $event" />
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Carga (ton) *</label>
-            <input type="number" class="form-input" [(ngModel)]="form.capacidad_carga_ton" min="5" max="50" />
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Kilometraje *</label>
-            <input type="number" class="form-input" [(ngModel)]="form.kilometraje_actual" min="0" />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Motor (meses) *</label>
-            <input type="number" class="form-input" [(ngModel)]="form.edad_motor_meses" min="0" max="240" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Estado *</label>
-          <select class="form-input" [(ngModel)]="form.estado">
-            <option value="En ruta">En ruta</option>
-            <option value="Disponible">Disponible</option>
-            <option value="Taller">Taller</option>
-            <option value="Inactivo">Inactivo</option>
-          </select>
-        </div>
+        </ng-container>
       </div>
       <div class="modal-footer">
         <button (click)="cerrarModal()" class="btn btn--ghost" [disabled]="cargando">Cancelar</button>
-        <button (click)="guardar()" class="btn btn--primary" [disabled]="cargando">{{ cargando ? 'Guardando...' : (editando ? 'Actualizar' : 'Guardar') }}</button>
+        <button (click)="guardarTodo()" class="btn btn--primary" [disabled]="cargando">{{ cargando ? 'Guardando...' : (modo === 'crear' ? 'Guardar' : (modo === 'editar' ? 'Actualizar Todo' : 'Guardar Componentes')) }}</button>
       </div>
     </div>
   </div>

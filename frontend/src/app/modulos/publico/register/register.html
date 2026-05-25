@@ -44,7 +44,7 @@
             <div class="register-field">
               <label class="register-label">Nombre Completo</label>
               <input type="text" [(ngModel)]="formData.nombre" name="nombre" placeholder="Juan Perez"
-                     class="register-input"
+                     class="register-input" pattern="[A-Za-zÀ-ÿ\s]{2,}" title="Solo letras y espacios (min. 2 caracteres)"
                      [class.register-input--valid]="getValido('nombre')"
                      [class.register-input--invalid]="getInvalido('nombre')" />
               <span *ngIf="getInvalido('nombre')" class="register-error">{{ errores['nombre'] }}</span>

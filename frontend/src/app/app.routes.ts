@@ -8,6 +8,7 @@ import { DashboardAdminComponent } from './modulos/admin/dashboard/dashboard';
 import { UnidadesComponent } from './modulos/admin/unidades/unidades';
 import { ConductoresComponent } from './modulos/admin/conductores/conductores';
 import { AlertasComponent } from './modulos/admin/alertas/alertas';
+import { ViajesComponent } from './modulos/admin/viajes/viajes';
 import { ConductorComponent } from './layouts/conductor/conductor';
 import { adminGuard, conductorGuard } from './guards/auth.guard';
 
@@ -31,7 +32,8 @@ export const routes: Routes = [
       { path: 'dashboard', component: DashboardAdminComponent },
       { path: 'unidades', component: UnidadesComponent },
       { path: 'conductores', component: ConductoresComponent },
-      { path: 'alertas', component: AlertasComponent }
+      { path: 'alertas', component: AlertasComponent },
+      { path: 'viajes', component: ViajesComponent }
     ]
   },
   { 

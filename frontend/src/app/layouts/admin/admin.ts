@@ -21,6 +21,7 @@ export class AdminLayout implements OnInit {
   truck = 'truck';
   users = 'users';
   bell = 'bell';
+  mapPin = 'map-pin';
   logOut = 'log-out';
   sun = 'sun';
   moon = 'moon';

@@ -1,0 +1,127 @@
+<div class="crud-page">
+  <div class="crud-header">
+    <div>
+      <h1 class="crud-title">
+        <lucide-icon [img]="mapPin" class="w-6 h-6"></lucide-icon>
+        Gestion de Viajes
+      </h1>
+      <p class="crud-subtitle">{{ viajes.length }} viajes registrados</p>
+    </div>
+    <button (click)="abrirNuevo()" [disabled]="cargando" class="crud-btn-primary">
+      <lucide-icon [img]="plus" class="w-4 h-4"></lucide-icon>
+      Registrar Viaje
+    </button>
+  </div>
+
+  <div *ngIf="error" class="crud-error">{{ error }}</div>
+
+  <div *ngIf="cargando && viajes.length === 0" class="crud-loading">
+    <div class="crud-spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
+
+  <div class="crud-filter">
+    <label class="crud-filter-label">Filtrar por vehiculo:</label>
+    <select [(ngModel)]="filtrarVehiculo" class="crud-select">
+      <option value="Todos">Todos</option>
+      <option *ngFor="let v of vehiculos" [value]="v.id_vehiculo">{{ v.id_vehiculo }} - {{ v.placa }}</option>
+    </select>
+  </div>
+
+  <div class="crud-table-wrapper">
+    <table class="crud-table">
+      <thead>
+        <tr>
+          <th>Vehiculo</th>
+          <th>Origen</th>
+          <th>Destino</th>
+          <th>Km Inicio</th>
+          <th>Km Fin</th>
+          <th>Km Recorridos</th>
+          <th>Km OSRM</th>
+          <th>Desviacion</th>
+          <th>Tipo</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let v of filtrados" class="crud-row">
+          <td class="crud-cell-id">{{ v.id_vehiculo }}</td>
+          <td>{{ v.origen_viaje?.nombre || '-' }}</td>
+          <td>{{ v.destino_viaje?.nombre || v.destino_nombre || '-' }}</td>
+          <td>{{ v.km_inicio | number:'1.0-0' }}</td>
+          <td>{{ v.km_fin | number:'1.0-0' }}</td>
+          <td class="crud-cell-bold">{{ v.km_recorridos | number:'1.0-0' }} km</td>
+          <td>{{ v.km_osrm | number:'1.0-0' }} km</td>
+          <td>
+            <span [style.color]="v.desviacion_km >= 0 ? 'var(--color-danger)' : '#16a34a'">
+              {{ v.desviacion_km | number:'1.0-0' }} km
+            </span>
+          </td>
+          <td>
+            <span class="badge" [class.badge--ruta]="v.tipo_viaje === 'manual'" [class.badge--disponible]="v.tipo_viaje === 'simulador'">{{ v.tipo_viaje }}</span>
+          </td>
+          <td>{{ v.fecha_viaje | date:'short' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MODAL REGISTRAR VIAJE -->
+  <div *ngIf="modalAbierto" class="modal-overlay" (click)="cerrarModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">Registrar Viaje</h2>
+        <button (click)="cerrarModal()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Vehiculo *</label>
+          <select class="form-input" [(ngModel)]="form.id_vehiculo" (change)="onVehiculoChange()">
+            <option value="">Seleccionar vehiculo</option>
+            <option *ngFor="let v of vehiculos" [value]="v.id_vehiculo">{{ v.id_vehiculo }} - {{ v.placa }} ({{ v.kilometraje_actual | number:'1.0-0' }} km)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Origen *</label>
+            <input class="form-input" [(ngModel)]="form.origen_nombre" placeholder="Ej: Base Central"
+                   required pattern="[A-Za-zÀ-ÿ0-9\s]+" title="Solo letras, numeros y espacios" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Destino *</label>
+            <input class="form-input" [(ngModel)]="form.destino_nombre" placeholder="Ej: Almacen Laredo"
+                   required pattern="[A-Za-zÀ-ÿ0-9\s]+" title="Solo letras, numeros y espacios" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Km Inicio</label>
+            <input type="number" class="form-input" [(ngModel)]="form.km_inicio" min="0" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Km Fin (dejar en 0 para solo iniciar)</label>
+            <input type="number" class="form-input" [(ngModel)]="form.km_fin" min="0" />
+          </div>
+        </div>
+        <div *ngIf="form.km_fin > 0" class="viaje-resumen">
+          <p class="tab-section-title">Resumen del Viaje</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Km Recorridos (odometro)</label>
+              <input type="number" class="form-input" [value]="kmRecorridosCalculado" disabled />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nuevo Km del Vehiculo</label>
+              <input type="number" class="form-input" [value]="form.km_fin" disabled />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button (click)="cerrarModal()" class="btn btn--ghost" [disabled]="cargando">Cancelar</button>
+        <button (click)="guardar()" class="btn btn--primary" [disabled]="cargando">{{ cargando ? 'Guardando...' : (form.km_fin > 0 ? 'Registrar Viaje Completo' : 'Iniciar Viaje') }}</button>
+      </div>
+    </div>
+  </div>
+</div>

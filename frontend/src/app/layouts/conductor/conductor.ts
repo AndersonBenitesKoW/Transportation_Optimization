@@ -1,9 +1,11 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { FlotaService } from '../../services/flota';
+import { Subscription, timer, switchMap, exhaustMap } from 'rxjs';
 import { ApiService } from '../../services/api.service';
+import { AuthService } from '../../services/auth.service';
 import { ThemeService } from '../../services/theme.service';
 import { IconComponent } from '../../components/icon.component';
 import * as L from 'leaflet';
@@ -15,7 +17,7 @@ import * as L from 'leaflet';
   templateUrl: './conductor.html',
   styleUrl: './conductor.css'
 })
-export class ConductorComponent implements OnInit, AfterViewInit, OnDestroy {
+export class ConductorComponent implements OnInit, OnDestroy {
   usuarioActual: any = null;
   miCamion: any = null;
   chatAbierto: boolean = false;
@@ -35,9 +37,13 @@ export class ConductorComponent implements OnInit, AfterViewInit, OnDestroy {
   zap = 'zap';
 
   private apiService = inject(ApiService);
+  private authService = inject(AuthService);
   private flotaService = inject(FlotaService);
   private router = inject(Router);
   readonly themeService = inject(ThemeService);
+
+  mostrandoFormViaje: boolean = false;
+  viajeCargando: boolean = false;
 
   mensajeNuevo: string = '';
   historial: { texto: string, soyYo: boolean }[] = [];
@@ -48,7 +54,7 @@ export class ConductorComponent implements OnInit, AfterViewInit, OnDestroy {
   private destMarker!: L.Marker;
   private routeLine: L.Polyline | null = null;
   private rutaAnterior: string = '';
-  private pollingInterval: any = null;
+  private pollSub?: Subscription;
 
   private darkIcon = L.icon({
     iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
@@ -79,18 +85,29 @@ export class ConductorComponent implements OnInit, AfterViewInit, OnDestroy {
       this.router.navigate(['/login']);
     }
 
-    this.obtenerDatosFlota();
-    this.pollingInterval = setInterval(() => this.obtenerDatosFlota(), 5000);
-  }
-
-  ngAfterViewInit() {
-    setTimeout(() => this.iniciarMapa(), 300);
+    this.pollSub = timer(0, 5000).pipe(
+      exhaustMap(() => this.flotaService.getFlota())
+    ).subscribe({
+      next: (res: any) => {
+        const datos = res.data?.find((c: any) => c.id_camion === this.usuarioActual?.ref);
+        if (datos) {
+          this.miCamion = datos;
+          if (!this.map) {
+            setTimeout(() => this.iniciarMapa(), 400);
+          } else {
+            setTimeout(() => {
+              this.map.invalidateSize();
+              this.actualizarMapaConductor();
+            }, 100);
+          }
+        }
+      },
+      error: (err: any) => console.error('Error obteniendo datos de flota:', err)
+    });
   }
 
   ngOnDestroy() {
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-    }
+    this.pollSub?.unsubscribe();
     if (this.map) {
       this.map.remove();
     }
@@ -122,17 +139,46 @@ export class ConductorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   confirmarLogout() {
     this.cargandoLogout = true;
-    if (this.pollingInterval) {
-      clearInterval(this.pollingInterval);
-    }
-    setTimeout(() => {
-      localStorage.removeItem('fleetmind_user');
-      this.router.navigate(['/login']);
-    }, 400);
+    this.pollSub?.unsubscribe();
+    this.authService.logout();
   }
 
   toggleChat() {
     this.chatAbierto = !this.chatAbierto;
+  }
+
+  iniciarViajeConductor() {
+    this.mostrandoFormViaje = true;
+  }
+
+  confirmarIniciarViaje() {
+    if (!this.miCamion || !this.miCamion.kilometraje || this.miCamion.kilometraje <= 0) return;
+    this.viajeCargando = true;
+    this.apiService.iniciarViaje({
+      id_vehiculo: this.miCamion.id_camion,
+      origen_nombre: 'Base Central',
+      origen_lat: this.miCamion.ubicacion?.lat || -8.1159,
+      origen_lng: this.miCamion.ubicacion?.lng || -79.0299,
+      destino_nombre: this.miCamion.destino?.nombre || 'Destino',
+      destino_lat: this.miCamion.destino?.lat || -8.0822,
+      destino_lng: this.miCamion.destino?.lng || -79.0144,
+      km_inicio: this.miCamion.kilometraje
+    }).subscribe({
+      next: () => { this.viajeCargando = false; this.mostrandoFormViaje = false; },
+      error: (e) => { alert('Error: ' + e.message); this.viajeCargando = false; }
+    });
+  }
+
+  confirmarFinalizarViaje() {
+    if (!this.miCamion || !this.miCamion.kilometraje || this.miCamion.kilometraje <= (this.miCamion.km_inicio_viaje || 0)) return;
+    this.viajeCargando = true;
+    this.apiService.finalizarViaje({
+      id_vehiculo: this.miCamion.id_camion,
+      km_fin: this.miCamion.kilometraje
+    }).subscribe({
+      next: () => { this.viajeCargando = false; },
+      error: (e) => { alert('Error: ' + e.message); this.viajeCargando = false; }
+    });
   }
 
   toggleTema() {
@@ -141,9 +187,11 @@ export class ConductorComponent implements OnInit, AfterViewInit, OnDestroy {
 
   iniciarMapa() {
     const el = document.getElementById('mapa-conductor');
-    if (!el) return;
+    if (!el) { console.warn('⚠️ iniciarMapa: elemento #mapa-conductor NO encontrado en el DOM'); return; }
+    console.log('🟢 iniciarMapa: elemento encontrado, creando mapa...');
 
     const isDark = this.themeService.isDark();
+    console.log(`🟢 iniciarMapa: tema isDark=${isDark}, tileLayer=${isDark ? 'CARTO light_all' : 'OSM'}`);
 
     this.map = L.map('mapa-conductor', {
       zoomControl: false,
@@ -151,42 +199,38 @@ export class ConductorComponent implements OnInit, AfterViewInit, OnDestroy {
     }).setView([-8.1159, -79.0299], 13);
 
     if (isDark) {
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 19
+      }).on('tileerror', (e: any) => {
+        console.warn(`⚠️ Tile CARTO error: ${e.tile?.src || '?'}`);
       }).addTo(this.map);
     } else {
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19
+      }).on('tileerror', (e: any) => {
+        console.warn(`⚠️ Tile OSM error: ${e.tile?.src || '?'}`);
       }).addTo(this.map);
     }
 
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
+    console.log('🟢 iniciarMapa: mapa creado correctamente');
+    setTimeout(() => {
+      this.map.invalidateSize();
+      this.actualizarMapaConductor();
+    }, 300);
   }
 
-  obtenerDatosFlota() {
-    if (!this.usuarioActual?.ref) return;
-    this.flotaService.getFlota().subscribe({
-      next: (res: any) => {
-        const datos = res.data?.find((c: any) => c.id_camion === this.usuarioActual.ref);
-        if (datos) {
-          this.miCamion = datos;
-          if (this.map) {
-            setTimeout(() => {
-              this.map.invalidateSize();
-              this.actualizarMapaConductor();
-            }, 100);
-          }
-        }
-      },
-      error: (err: any) => console.error('Error obteniendo datos de flota:', err)
-    });
-  }
 
   actualizarMapaConductor() {
-    if (!this.map || !this.miCamion?.ubicacion) return;
+    if (!this.map || !this.miCamion?.ubicacion) {
+      if (!this.map) console.warn('⚠️ actualizarMapaConductor: mapa no inicializado');
+      else console.warn('⚠️ actualizarMapaConductor: miCamion.ubicacion es null/undefined. Datos:', JSON.stringify(this.miCamion));
+      return;
+    }
+    console.log(`🟢 actualizarMapaConductor: ubicacion=(${this.miCamion.ubicacion.lat},${this.miCamion.ubicacion.lng}) destino=(${this.miCamion.destino?.lat},${this.miCamion.destino?.lng}) puntos_ruta=${this.miCamion.puntos_ruta?.length || 0}pts`);
 
     const posActual = L.latLng(this.miCamion.ubicacion.lat, this.miCamion.ubicacion.lng);
     const posDestino = L.latLng(this.miCamion.destino.lat, this.miCamion.destino.lng);

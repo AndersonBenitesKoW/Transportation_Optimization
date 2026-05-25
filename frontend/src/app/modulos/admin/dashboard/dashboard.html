@@ -1,4 +1,9 @@
 <div class="dashboard">
+  <div *ngIf="errorFlota" class="crud-error" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <span>{{ errorFlota }}</span>
+    <button (click)="errorFlota = null" style="background:none;border:none;color:var(--text-primary);cursor:pointer;font-size:1.2rem;line-height:1">&times;</button>
+  </div>
+
   <div class="dashboard-toasts">
     <div *ngFor="let alerta of alertasActivas"
          class="dashboard-toast"
@@ -65,7 +70,10 @@
           <lucide-icon [img]="truck" class="w-4 h-4"></lucide-icon>
           {{ camion.id_camion }}
         </h2>
-        <span class="camion-card-mision">{{ camion.mision }}</span>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span *ngIf="camion.viaje_activo" class="camion-card-mision" style="background:rgba(34,197,94,0.12);color:#16a34a">VIAJE ACTIVO</span>
+          <span class="camion-card-mision">{{ camion.mision }}</span>
+        </div>
       </div>
 
       <div *ngIf="camion.conductor_asignado" class="camion-card-driver">

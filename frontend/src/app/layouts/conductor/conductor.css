@@ -228,6 +228,18 @@
   box-shadow: var(--shadow-lg);
 }
 
+.conductor-card--viaje {
+  border: 2px solid var(--border-color);
+  background: var(--card-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.conductor-card--viaje:hover {
+  border-color: var(--color-orange-500);
+}
+
 .conductor-card-accent {
   position: absolute;
   top: 0;
@@ -341,7 +353,6 @@
 }
 
 #mapa-conductor {
-  height: 100%;
   width: 100%;
 }
 
@@ -668,6 +679,42 @@
 
 .conductor-btn--danger:disabled {
   opacity: 0.6;
+}
+
+.conductor-btn--primary {
+  background: linear-gradient(to right, #22C55E, #16A34A);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+}
+
+.conductor-btn--primary:hover:not(:disabled) {
+  background: linear-gradient(to right, #16A34A, #15803D);
+}
+
+.conductor-btn--primary:disabled {
+  opacity: 0.6;
+}
+
+.conductor-btn--orange {
+  background: linear-gradient(to right, var(--color-orange-500), var(--color-orange-400));
+  color: #fff;
+  font-weight: 700;
+  border: none;
+}
+
+.conductor-btn--orange:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(255, 107, 0, 0.4);
+}
+
+.conductor-btn--orange:disabled {
+  opacity: 0.6;
+}
+
+.conductor-btn-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .conductor-spinner {

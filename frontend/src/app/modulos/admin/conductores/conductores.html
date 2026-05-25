@@ -86,21 +86,25 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">ID Conductor *</label>
-            <input class="form-input" [disabled]="editando" [(ngModel)]="form.id_conductor" placeholder="C-006" />
+            <input class="form-input" [disabled]="editando" [(ngModel)]="form.id_conductor" placeholder="C-006"
+                   required pattern="[A-Za-z0-9\-]+" title="Solo letras, numeros y guiones" />
           </div>
           <div class="form-group">
             <label class="form-label">Nombre Completo *</label>
-            <input class="form-input" [(ngModel)]="form.nombre" placeholder="Juan Perez" />
+            <input class="form-input" [(ngModel)]="form.nombre" placeholder="Juan Perez"
+                   required pattern="[A-Za-zÀ-ÿ\s]{2,}" title="Solo letras y espacios (min. 2 caracteres)" />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Email *</label>
-            <input type="email" class="form-input" [(ngModel)]="form.email" placeholder="conductor@empresa.com" />
+            <input type="email" class="form-input" [(ngModel)]="form.email" placeholder="conductor@empresa.com"
+                   required />
           </div>
           <div class="form-group">
             <label class="form-label">Telefono *</label>
-            <input type="tel" class="form-input" [(ngModel)]="form.telefono" placeholder="999888777" />
+            <input type="tel" class="form-input" [(ngModel)]="form.telefono" placeholder="999888777"
+                   required pattern="[0-9]{6,15}" title="Solo numeros (6 a 15 digitos)" />
           </div>
         </div>
         <div class="form-row">

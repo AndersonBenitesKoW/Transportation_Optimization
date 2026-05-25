@@ -38,6 +38,12 @@
         <lucide-icon [img]="bell" class="w-5 h-5"></lucide-icon>
         <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Alertas</span>
       </a>
+      <a routerLink="/admin/viajes"
+         routerLinkActive="admin-sidebar-link--active"
+         class="admin-sidebar-link">
+        <lucide-icon [img]="mapPin" class="w-5 h-5"></lucide-icon>
+        <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Viajes</span>
+      </a>
     </nav>
 
     <div class="admin-sidebar-footer">
