@@ -55,7 +55,6 @@ def obtener_ruta_detallada(camion_id, start_lat, start_lng, end_lat, end_lng):
         print(f"❌ OSRM ERROR [{camion_id}]: {type(e).__name__}: {e}")
     return [], 0
 
-# En simulator.py, verifica que el nombre de la colección sea exacto
 def registrar_incidente(camion_id, conductor_id, tipo, descripcion, lat, lng):
     incidente = {
         "fecha_hora": datetime.now(),
@@ -66,7 +65,7 @@ def registrar_incidente(camion_id, conductor_id, tipo, descripcion, lat, lng):
         "ubicacion_incidente": {"lat": lat, "lng": lng},
         "estado": "Abierto"
     }
-    db.collection(u'incidentes_flota').add(incidente) # Verifica este nombre en Firebase
+    db.collection(u'incidentes_flota').add(incidente)
 
 def registrar_viaje_finalizado(camion):
     if "stats" not in camion:
@@ -112,58 +111,68 @@ def actualizar_flota():
         camiones_en_ruta = 0
         
         for camion in CAMIONES:
-            if camion["finalizado"]: 
-                continue
-                
-            camiones_en_ruta += 1
-
             # =================================================================
-            # NUEVO MÓDULO: SINCRONIZACIÓN FÍSICA CON LAS ÓRDENES DE LA IA
+            # NUEVO MÓDULO: SINCRONIZACIÓN FÍSICA A PRUEBA DE SOBRESCRITURAS
             # =================================================================
             try:
                 doc_ia = db.collection(u'telemetria_flota').document(camion["id"]).get()
                 if doc_ia.exists:
                     datos_ia = doc_ia.to_dict()
                     
-                    # Verificamos si la IA (Gemini) cambió el destino en la base de datos
-                    if "destino" in datos_ia and datos_ia["destino"]["nombre"] != camion["destino"]["nombre"]:
-                        print(f"🤖 ¡IA tomó el control! Redirigiendo {camion['id']} a {datos_ia['destino']['nombre']}")
+                    # 1. ¿EL CONDUCTOR DETUVO EL VIAJE?
+                    if datos_ia.get("viaje_activo") == False:
+                        if not camion.get("finalizado"):
+                            print(f"🛑 {camion['id']}: Viaje detenido desde la App.")
+                            camion["finalizado"] = True
+                        continue 
+                    
+                    # 2. ¿HAY UNA ORDEN NUEVA EXPRESA DESDE EL ADMIN? (Revisamos la Bandera)
+                    if datos_ia.get("nueva_orden") == True:
+                        print(f"🤖 ¡Orden Externa Detectada! Enrutando {camion['id']}")
                         
-                        camion["destino"] = datos_ia["destino"]
+                        camion["finalizado"] = False
+                        camion["destino"] = datos_ia.get("destino", camion["destino"])
                         
-                        # Extraemos los puntos físicos de la nueva ruta (Maneja diccionarios o listas)
+                        # Extraemos los puntos exactos que trazó el Administrador
                         if "puntos_ruta" in datos_ia and len(datos_ia["puntos_ruta"]) > 0:
                             nueva_ruta = []
                             for p in datos_ia["puntos_ruta"]:
                                 lat = p["lat"] if isinstance(p, dict) else p[0]
                                 lng = p["lng"] if isinstance(p, dict) else p[1]
-                                nueva_ruta.append([lat, lng])
+                                nueva_ruta.append([lng, lat]) # Formato [Lng, Lat] para que el camión no se pierda
                             camion["ruta_puntos"] = nueva_ruta
                         else:
-                            # Respaldo en caso de que falten puntos
-                            puntos, _ = obtener_ruta_detallada(camion["id"], camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
-                            camion["ruta_puntos"] = puntos
-
+                            pts, _ = obtener_ruta_detallada(camion["id"], camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
+                            camion["ruta_puntos"] = pts
+                            
                         camion["distancia_total_ruta"] = datos_ia.get("distancia_restante_km", 0.1)
-                        camion["indice_ruta"] = 0 # Reiniciamos el viaje
+                        camion["indice_ruta"] = 0
                         camion["km_inicio_viaje"] = camion["km"]
-                        camion["stats"] = {
-                            "hora_inicio": datetime.now(),
-                            "combustible_inicial": camion["combustible"],
-                            "lat_inicial": camion["lat"],
-                            "lng_inicial": camion["lng"]
-                        }
-                        # Limpiamos la orden para que no entre en bucle de reinicio
-                        db.collection(u'telemetria_flota').document(camion["id"]).update({"puntos_ruta": []})
                         
-                        # Reiniciamos las métricas para no arrastrar el combustible de la misión anterior
-                        if "stats" in camion:
-                            camion["stats"]["lat_inicial"] = camion["lat"]
-                            camion["stats"]["lng_inicial"] = camion["lng"]
-                            camion["stats"]["combustible_inicial"] = camion["combustible"]
+                        # ¡VITAL! Apagamos la bandera para que no reinicie el viaje infinitamente
+                        db.collection(u'telemetria_flota').document(camion["id"]).update({"nueva_orden": False})
+                    
+                    # 3. CASO: Estaba frenado y le dieron a "CONTINUAR VIAJE" (sin nueva ruta)
+                    elif camion.get("finalizado"):
+                        print(f"▶️ {camion['id']}: Reanudando viaje hacia {camion['destino']['nombre']}.")
+                        camion["finalizado"] = False
+                        
+                        pts, dist = obtener_ruta_detallada(camion["id"], camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
+                        camion["ruta_puntos"] = pts
+                        camion["distancia_total_ruta"] = max(dist, 0.1)
+                        camion["indice_ruta"] = 0
+
             except Exception as e:
                 pass
             # =================================================================
+
+            # =================================================================
+            # 2. AHORA SÍ, SI SIGUE FINALIZADO, LO SALTAMOS
+            # =================================================================
+            if camion.get("finalizado"): 
+                continue
+                
+            camiones_en_ruta += 1
 
             # --- 1. INICIO DE RUTA NORMAL ---
             if not camion["ruta_puntos"]:
@@ -196,6 +205,20 @@ def actualizar_flota():
                 print(f"🏁 {camion['id']}: FINALIZADO (indice_ruta={camion['indice_ruta']} >= total={len(camion['ruta_puntos'])})")
                 registrar_viaje_finalizado(camion)
                 camion["finalizado"] = True
+
+                # ¡CORRECCIÓN 2! Cierre automático en Firebase
+                try:
+                    db.collection(u'telemetria_flota').document(camion["id"]).update({
+                        "viaje_activo": False,
+                        "mision": "Esperando orden",
+                        "puntos_ruta": []
+                    })
+                    db.collection(u'vehiculos').document(camion["id"]).update({
+                        "estado": "Disponible"
+                    })
+                except Exception as e:
+                    print(f"Error actualizando Firebase al finalizar viaje: {e}")
+
                 continue
 
             # --- 3. CONSUMO Y ANOMALÍAS ---
@@ -237,9 +260,6 @@ def actualizar_flota():
                     for i in range(0, len(pts), paso)
                 ] if pts else []
 
-                # En este SET ya NO subimos puntos_ruta, así ahorramos muchísimo espacio
-                # y dejamos que Angular controle su trazado por calles localmente.
-                # ...
                 db.collection(u'telemetria_flota').document(camion["id"]).set({
                     "id_camion": camion["id"],
                     "conductor_asignado": CONDUCTORES[camion["id_conductor"]],
@@ -254,13 +274,13 @@ def actualizar_flota():
                     "temperatura_motor": temp,
                     "consumo_instante": round(consumo_enviado, 2),
                     "destino": camion["destino"],
-                    "mision": f"Ruta a {camion['destino']['nombre']}",
+                    "mision": f"Ruta a {camion['destino']['nombre']}" if camion.get("viaje_activo", True) else "Esperando orden",
                     "distancia_restante_km": round(dist_restante, 2),
                     "ultima_actualizacion": datetime.now(),
-                    "viaje_activo": True,
+                    "viaje_activo": not camion.get("finalizado", False),
                     "km_inicio_viaje": camion.get("km_inicio_viaje", camion["km"]),
                     "puntos_ruta": puntos_ruta_firestore
-                }, merge=True) # <--- EL SECRETO ESTÁ AQUÍ. Merge evita borrar los puntos_ruta de la IA
+                }, merge=True)
                 print(f"📡 {camion['id']}: telemetria enviada (ruta={len(puntos_ruta_firestore)}pts)")
             except Exception as e:
                 print(f"❌ Error en Firebase [{camion['id']}]: {e}")

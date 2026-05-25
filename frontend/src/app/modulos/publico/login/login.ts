@@ -39,8 +39,23 @@ export class LoginComponent implements OnInit {
   iniciarSesion() {
     if (!this.credenciales.email || !this.credenciales.password) { this.errorLogin = 'Completa todos los campos'; return; }
     this.cargando = true; this.errorLogin = '';
-    if (this.credenciales.email === 'admin' && this.credenciales.password === 'admin123') { this.authService.loginDemo('ADMIN'); this.cargando = false; return; }
-    if (this.credenciales.email.startsWith('c00') && this.credenciales.password === '1234') { this.authService.loginDemo('CONDUCTOR'); this.cargando = false; return; }
+    
+    if (this.credenciales.email === 'admin' && this.credenciales.password === 'admin123') { 
+      this.authService.loginDemo('ADMIN'); 
+      this.cargando = false; 
+      return; 
+    }
+    
+    // NUEVA LÓGICA DE LOGIN PARA CONDUCTORES
+    if (this.credenciales.email.startsWith('c00') && this.credenciales.password === '1234') { 
+      // Extraemos los últimos 3 números del email (ej: "c003" -> "003")
+      const numCamion = this.credenciales.email.substring(1); 
+      // Llamamos al servicio indicando exactamente qué camión es
+      this.authService.loginDemo('CONDUCTOR', `CAMION-${numCamion}`); 
+      this.cargando = false; 
+      return; 
+    }
+
     this.authService.login(this.credenciales.email, this.credenciales.password).subscribe({
       next: (r: any) => { this.cargando = false; if (r.status === 'success') this.redirigirSegunRol(); else this.errorLogin = 'Usuario o contrasena incorrectos'; },
       error: () => { this.cargando = false; this.errorLogin = 'Error. Intenta con: admin/admin123'; }

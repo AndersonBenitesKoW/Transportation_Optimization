@@ -969,23 +969,56 @@ def obtener_kpis():
 @app.post("/api/viajes/iniciar")
 def iniciar_viaje(viaje: ViajeIniciar):
     try:
+        # 1. Verificamos que el vehículo esté disponible
+        vehiculo_ref = db.collection('vehiculos').document(viaje.id_vehiculo)
+        vehiculo_doc = vehiculo_ref.get()
+        
+        if vehiculo_doc.exists:
+            estado_actual = vehiculo_doc.to_dict().get("estado", "")
+            if estado_actual == "En ruta":
+                raise HTTPException(status_code=400, detail="El camión ya se encuentra en ruta. Debe finalizar su viaje actual primero.")
+
+        # 2. Calculamos la ruta física usando OSRM
+        puntos_ruta, dist_km = routing_engine.obtener_ruta_optima(
+            viaje.origen_lat, viaje.origen_lng,
+            viaje.destino_lat, viaje.destino_lng
+        )
+        
+        # =========================================================
+        # ¡NUEVO SEGURO! Evitar "viajes fantasma" de 0 km
+        # =========================================================
+        if dist_km < 0.05:  # Si está a menos de 50 metros
+            raise HTTPException(status_code=400, detail="El camión ya se encuentra en este destino. Debes asignarle una nueva ruta.")
+        
+        # Convertimos a formato Firebase
+        puntos_firebase = [{"lat": p[0], "lng": p[1]} for p in puntos_ruta] if puntos_ruta else []
+
+        # 3. Actualizamos la telemetría para que el Simulador y el Mapa reaccionen
         tele_ref = db.collection('telemetria_flota').document(viaje.id_vehiculo)
+        # En main.py (Endpoint /api/viajes/iniciar)
         update_data = {
             "viaje_activo": True,
             "km_inicio_viaje": viaje.km_inicio,
             "origen_viaje": {"nombre": viaje.origen_nombre, "lat": viaje.origen_lat, "lng": viaje.origen_lng},
             "destino_viaje": {"nombre": viaje.destino_nombre, "lat": viaje.destino_lat, "lng": viaje.destino_lng},
+            "destino": {"nombre": viaje.destino_nombre, "lat": viaje.destino_lat, "lng": viaje.destino_lng},
             "fecha_inicio_viaje": datetime.now(),
             "tipo_viaje": "manual",
-            "mision": f"Viaje a {viaje.destino_nombre}"
+            "mision": f"Viaje asignado a {viaje.destino_nombre}",
+            "puntos_ruta": puntos_firebase, 
+            "distancia_restante_km": dist_km,
+            "nueva_orden": True # <--- LA BANDERA QUE OBLIGARÁ AL SIMULADOR A OBEDECER
         }
         tele_ref.set(update_data, merge=True)
 
-        vehiculo_ref = db.collection('vehiculos').document(viaje.id_vehiculo)
-        if vehiculo_ref.get().exists:
+        # 4. Cambiamos el estado del vehículo en la BD general
+        if vehiculo_doc.exists:
             vehiculo_ref.update({"estado": "En ruta", "kilometraje_actual": viaje.km_inicio})
 
-        return {"status": "success", "mensaje": f"Viaje iniciado para {viaje.id_vehiculo}"}
+        return {"status": "success", "mensaje": f"Viaje trazado y asignado para {viaje.id_vehiculo}"}
+    
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

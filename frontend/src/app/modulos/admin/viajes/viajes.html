@@ -67,7 +67,6 @@
     </table>
   </div>
 
-  <!-- MODAL REGISTRAR VIAJE -->
   <div *ngIf="modalAbierto" class="modal-overlay" (click)="cerrarModal()">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
@@ -82,18 +81,31 @@
             <option *ngFor="let v of vehiculos" [value]="v.id_vehiculo">{{ v.id_vehiculo }} - {{ v.placa }} ({{ v.kilometraje_actual | number:'1.0-0' }} km)</option>
           </select>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Origen *</label>
-            <input class="form-input" [(ngModel)]="form.origen_nombre" placeholder="Ej: Base Central"
-                   required pattern="[A-Za-zÀ-ÿ0-9\s]+" title="Solo letras, numeros y espacios" />
+        
+        <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+          <p style="margin: 0 0 5px 0; font-weight: bold; color: #1e293b; font-size: 14px;">Asignación de Ruta</p>
+          <p style="margin: 0 0 10px 0; font-size: 12px; color: #64748b;">El origen se calcula automáticamente. Por favor, selecciona el punto de destino en el mapa.</p>
+          
+          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <div style="flex: 1; padding: 8px; background: #cbd5e1; color: #475569; border-radius: 6px; font-weight: bold; text-align: center; font-size: 14px;">
+              📍 Origen Fijado
+            </div>
+            <button (click)="seleccionarModo('destino')" 
+                    [style.background]="modoSeleccion === 'destino' ? '#ef4444' : '#e2e8f0'"
+                    [style.color]="modoSeleccion === 'destino' ? 'white' : '#475569'"
+                    style="flex: 1; padding: 8px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">
+              🎯 Clic para cambiar Destino
+            </button>
           </div>
-          <div class="form-group">
-            <label class="form-label">Destino *</label>
-            <input class="form-input" [(ngModel)]="form.destino_nombre" placeholder="Ej: Almacen Laredo"
-                   required pattern="[A-Za-zÀ-ÿ0-9\s]+" title="Solo letras, numeros y espacios" />
+          
+          <div id="mapa-modal-viaje" style="height: 250px; border-radius: 8px; border: 2px solid #cbd5e1; cursor: crosshair;"></div>
+          
+          <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px; font-size: 12px; color: #64748b; background: white; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0;">
+            <span><strong>Punto de Partida:</strong> {{ form.origen_nombre }} ({{ form.origen_lat }}, {{ form.origen_lng }})</span>
+            <span><strong>Punto de Destino:</strong> {{ form.destino_lat ? form.destino_nombre + ' (' + form.destino_lat + ', ' + form.destino_lng + ')' : 'Por seleccionar' }}</span>
           </div>
         </div>
+
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Km Inicio</label>
@@ -104,6 +116,7 @@
             <input type="number" class="form-input" [(ngModel)]="form.km_fin" min="0" />
           </div>
         </div>
+        
         <div *ngIf="form.km_fin > 0" class="viaje-resumen">
           <p class="tab-section-title">Resumen del Viaje</p>
           <div class="form-row">
@@ -118,6 +131,7 @@
           </div>
         </div>
       </div>
+      
       <div class="modal-footer">
         <button (click)="cerrarModal()" class="btn btn--ghost" [disabled]="cargando">Cancelar</button>
         <button (click)="guardar()" class="btn btn--primary" [disabled]="cargando">{{ cargando ? 'Guardando...' : (form.km_fin > 0 ? 'Registrar Viaje Completo' : 'Iniciar Viaje') }}</button>

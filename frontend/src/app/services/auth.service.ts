@@ -103,7 +103,8 @@ export class AuthService {
   }
 
   // Método temporal para login rápido de prueba
-  loginDemo(rol: 'ADMIN' | 'CONDUCTOR'): void {
+  // Modifica la firma de la función para aceptar refCamion
+  loginDemo(rol: 'ADMIN' | 'CONDUCTOR', refCamion?: string): void {
     const usuario: Usuario = rol === 'ADMIN' 
       ? {
           uid: 'admin001',
@@ -113,12 +114,13 @@ export class AuthService {
           empresa: 'Ransa'
         }
       : {
-          uid: 'conductor001',
-          email: 'juan.perez@ransa.com',
-          nombre: 'Juan Pérez',
+          uid: `conductor_${refCamion}`,
+          email: `${refCamion?.toLowerCase()}@empresa.com`,
+          nombre: `Conductor de ${refCamion}`,
           rol: 'CONDUCTOR',
           empresa: 'Ransa',
-          ref: 'CAMION-001'
+          // AQUÍ ESTÁ LA CLAVE: Usamos el camión que nos pasan, o el 001 por defecto
+          ref: refCamion || 'CAMION-001' 
         };
     
     localStorage.setItem('fleetmind_user', JSON.stringify(usuario));
