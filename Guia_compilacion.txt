@@ -22,7 +22,10 @@ Cada vez que vuelvas a trabajar en el proyecto, solo necesitas hacer esto:
 Para el Backend:
 1.	cd backend
 2.	.\venv\Scripts\activate
+    -py simulator.py
 3.	uvicorn main:app --reload
+
+
 Para el Frontend:
 1.	cd fleetmind-fronted (o tu carpeta de Angular)
 2.	ng serve -o
