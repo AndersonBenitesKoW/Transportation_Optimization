@@ -491,6 +491,31 @@
   opacity: 0.6;
 }
 
+.form-input-prefix-group {
+  display: flex;
+  width: 100%;
+}
+
+.form-input-prefix {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-orange-500);
+  background: rgba(255, 107, 0, 0.08);
+  border: 1px solid var(--border-color);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  white-space: nowrap;
+  font-family: 'Courier New', Courier, monospace;
+  letter-spacing: 0.02em;
+}
+
+.form-input--with-prefix {
+  border-radius: 0 8px 8px 0;
+}
+
 .tab-section-title {
   font-size: 0.9rem;
   font-weight: 800;

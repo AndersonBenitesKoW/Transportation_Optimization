@@ -1,0 +1,237 @@
+===============================================================================
+  ULTIMOS REQUERIMIENTOS - Proyecto Transport Front
+===============================================================================
+
+REQ-001: Prefijo "CAMION-" automatico en ID de vehiculo
+---------------------------------------------------------------------------
+Fecha: 2026-06-01
+Estado: IMPLEMENTADO
+
+Descripcion:
+  En el CRUD de vehiculos (modulo Unidades), el campo "ID Vehiculo" ahora
+  tiene el prefijo "CAMION-" fijo e inamovible. El usuario solo ingresa
+  la parte numerica (ej: "008") y el sistema automaticamente concatena
+  el prefijo al guardar, resultando en "CAMION-008".
+
+Cambios realizados:
+  - unidades.html: Input de ID reemplazado por grupo con prefijo visual
+    "CAMION-" fijo + input numerico para el numero.
+  - unidades.ts: Nueva propiedad "idVehiculoNumero" para la parte numerica.
+    Constante PREFIJO_CAMION = 'CAMION-'.
+    Al guardar: se concatena PREFIJO_CAMION + idVehiculoNumero.
+    Al editar/configurar: se extrae el numero removiendo el prefijo.
+  - unidades.css: Nuevos estilos .form-input-prefix-group,
+    .form-input-prefix y .form-input--with-prefix para el grupo visual.
+
+Archivos modificados:
+  - frontend/src/app/modulos/admin/unidades/unidades.html
+  - frontend/src/app/modulos/admin/unidades/unidades.ts
+  - frontend/src/app/modulos/admin/unidades/unidades.css
+
+===============================================================================
+
+REQ-002: Registro de trayecto previo al viaje (distancia de reposicion)
+---------------------------------------------------------------------------
+Fecha: 2026-06-01
+Estado: PENDIENTE
+
+Descripcion:
+  Actualmente, cuando se inicia un viaje, el camion puede estar en un Punto A
+  (ubicacion actual) y el viaje comienza en un Punto B (origen del viaje),
+  terminando en un Punto C (destino). La distancia entre el Punto A y el
+  Punto B (reposicion/desplazamiento hasta el inicio del viaje) tambien
+  consume combustible, pero NO se registra como parte del viaje en si.
+
+  Se requiere crear un registro SEPARADO para esta distancia de reposicion:
+  - El administrador debe poder visualizar la distancia entre la ubicacion
+    actual del camion (Punto A) y el punto de inicio del viaje (Punto B).
+  - Esta distancia debe guardarse en un campo aparte, NO como parte del
+    kilometraje del viaje como tal.
+  - El combustible consumido en esta reposicion debe contabilizarse por
+    separado del viaje principal.
+
+  Ejemplo:
+    Camion en Punto A (ubicacion actual: ej. base central)
+    Inicio de viaje en Punto B (ej. cliente A)
+    Destino del viaje en Punto C (ej. cliente B)
+
+    Viaje principal = Punto B -> Punto C (km_recorridos, combustible del viaje)
+    Reposicion = Punto A -> Punto B (km_reposicion, combustible aparte)
+
+  Cambios necesarios:
+  - Agregar campos al formulario de viaje: distancia_reposicion_km,
+    combustible_reposicion_L (o similar) para registrar el trayecto previo.
+  - En el modal de viaje, calcular automaticamente la distancia OSRM entre
+    la ubicacion actual del camion y el punto de origen del viaje seleccionado
+    en el mapa.
+  - Permitir al administrador editar manualmente esta distancia si lo desea.
+  - El backend debe almacenar estos campos separadamente del viaje principal.
+  - La tabla de viajes debe mostrar la distancia de reposicion como una
+    columna adicional o en un desglose.
+
+  Archivos a modificar:
+  - frontend/src/app/modulos/admin/viajes/viajes.html (formulario y tabla)
+  - frontend/src/app/modulos/admin/viajes/viajes.ts (logica de calculo)
+  - frontend/src/app/services/api.service.ts (interfaces y API calls)
+  - Backend: modelo de viaje y endpoint correspondiente
+
+===============================================================================
+
+REQ-003: Ingreso manual de origen y destino con soporte de mapa en viajes
+---------------------------------------------------------------------------
+Fecha: 2026-06-01
+Estado: PENDIENTE
+
+Descripcion:
+  El registro de viajes tiene dos problemas principales:
+
+  PROBLEMA 1 - ORIGEN AUTOMATICO (MAL):
+    Actualmente, al seleccionar un vehiculo, el origen se calcula
+    automaticamente usando la telemetria en vivo o coordenadas por defecto
+    (lineas 74-108 de viajes.ts). El administrador NO puede ingresar el
+    origen manualmente ni seleccionarlo en el mapa.
+    - El texto dice "Origen Fijado" como si fuera inamovible.
+    - El nombre del origen es generico: "Ubicacion Actual (Telemetria)" o
+      "Base Central (Origen por Defecto)".
+
+    LO IDEAL: El administrador debe poder ingresar manualmente el nombre
+    del lugar de origen y tambien seleccionarlo en el mapa (igual que el
+    destino). La telemetria puede servir como sugerencia inicial, pero el
+    administrador debe tener control total sobre el punto de origen.
+
+  PROBLEMA 2 - DESTINO PARCIALMENTE BIEN:
+    Actualmente el destino se selecciona en el mapa con un clic, pero el
+    nombre es generico ("Destino Seleccionado") y no se puede ingresar
+    manualmente un nombre descriptivo.
+
+    LO IDEAL: El administrador debe poder ingresar manualmente el nombre
+    del lugar de destino Y apoyarse del mapa para seleccionar las
+    coordenadas. Ambos campos deben ser editables.
+
+  Cambios necesarios:
+  - ORIGEN:
+    * Agregar campo de texto editable para "Nombre del Origen" donde el
+      administrador escriba manualmente el nombre del lugar (ej: "Almacen
+      Central Lima", "Planta Industrial Arequipa").
+    * Habilitar la seleccion de origen en el mapa: el boton "Origen" debe
+      estar activo y al hacer clic en el mapa en modo origen, colocar el
+      marcador ahi.
+    * La telemetria puede autocompletar la ubicacion como sugerencia, pero
+      el administrador puede mover el marcador o escribir otro nombre.
+    * Eliminar el comportamiento automatico que fuerza el modo "destino"
+      despues de seleccionar el vehiculo (linea 107: modoSeleccion = 'destino').
+
+  - DESTINO:
+    * Agregar campo de texto editable para "Nombre del Destino" donde el
+      administrador escriba manualmente el nombre del lugar.
+    * Mantener la seleccion en el mapa para las coordenadas.
+    * Al hacer clic en el mapa, actualizar las coordenadas pero NO
+      sobreescribir el nombre si el administrador ya lo escribio.
+
+  - MAPA:
+    * Ambos modos (origen y destino) deben estar siempre disponibles con
+      botones claros.
+    * Eliminar el texto "Origen Fijado" y cambiarlo por botones
+      interactivos para ambos puntos.
+    * Al cambiar modo, el mapa debe indicar claramente si se esta
+      seleccionando origen o destino.
+
+  - FLUJO PROPUESTO:
+    1. Administrador selecciona el vehiculo.
+    2. Escribe el nombre del origen (o se sugiere automaticamente, pero
+       editable).
+    3. Hace clic en "Seleccionar Origen en Mapa" y hace clic en el mapa
+       para fijar coordenadas.
+    4. Escribe el nombre del destino.
+    5. Hace clic en "Seleccionar Destino en Mapa" y hace clic en el mapa
+       para fijar coordenadas.
+    6. Ingresa km_inicio y opcionalmente km_fin.
+    7. Guarda el viaje.
+
+  Archivos a modificar:
+  - frontend/src/app/modulos/admin/viajes/viajes.html (formulario modal)
+  - frontend/src/app/modulos/admin/viajes/viajes.ts (logica de seleccion
+    y formulario)
+
+===============================================================================
+
+REQ-004: Mostrar vehiculos del CRUD dinamicamente en el Dashboard de flota
+---------------------------------------------------------------------------
+Fecha: 2026-06-01
+Estado: PENDIENTE
+
+Descripcion:
+  Actualmente la seccion "Telemetria Detallada" (dashboard-fleet) en el
+  Dashboard solo muestra los camiones que devuelve el endpoint /api/flota
+  (simulador). Los vehiculos creados en el CRUD de Unidades NO aparecen
+  porque el simulador no los conoce.
+
+  Se requiere que el dashboard muestre TODOS los vehiculos registrados en
+  el CRUD de Unidades, combinando:
+
+  1. Vehiculos CON telemetria: muestran datos en vivo (km, temperatura,
+     combustible, estado IA, anomalias, etc.) tal como funciona hoy.
+  2. Vehiculos SIN telemetria (creados en el CRUD pero no en el simulador):
+     muestran una tarjeta con datos base del CRUD (placa, marca, modelo,
+     estado, conductor asignado, kilometraje) e indican visualmente que
+     estan "Sin senal" o "Sin telemetria".
+
+  Cambios necesarios:
+  - dashboard.ts: Obtener la lista de vehiculos del CRUD
+    (apiService.getVehiculos()) ademas de la flota de telemetria. Hacer
+    un merge: por cada vehiculo del CRUD, buscar si existe en la flota de
+    telemetria (por id_vehiculo). Si existe, mostrar datos en vivo. Si no,
+    mostrar tarjeta con datos base del CRUD + indicador "Sin telemetria".
+  - dashboard.html: Actualizar el *ngFor para iterar sobre la lista
+    combinada (vehiculos CRUD + telemetria mergeada) en vez de solo
+    "flota". Agregar condicion para mostrar tarjeta simplificada cuando
+    no hay datos de telemetria.
+  - dashboard.css: Estilos para la tarjeta de vehiculo sin telemetria
+    (indicador visual gris, badge "Sin senal", etc.).
+
+  Ejemplo de tarjeta sin telemetria:
+    - ID: CAMION-006 (del CRUD)
+    - Placa: XYZ-789
+    - Marca/Modelo: Volvo FH16 (2024)
+    - Estado: Disponible
+    - Conductor: Juan Perez
+    - Badge gris: "SIN TELEMETRIA"
+    - Sin datos de temperatura, combustible ni IA
+
+  Archivos a modificar:
+  - frontend/src/app/modulos/admin/dashboard/dashboard.ts
+  - frontend/src/app/modulos/admin/dashboard/dashboard.html
+  - frontend/src/app/modulos/admin/dashboard/dashboard.css
+
+===============================================================================
+
+REQ-005: Reglas de Negocio - Mantenimiento Preventivo de Vehiculos
+---------------------------------------------------------------------------
+Fecha: 2026-06-01
+Estado: PENDIENTE
+
+Descripcion:
+
+Reglas de Negocio: Mantenimiento Preventivo de Vehiculos
+El objetivo del sistema es gestionar el mantenimiento preventivo de las unidades de transporte en funcion del tiempo de vida util o el kilometraje de sus piezas.
+
+1. Ciclo de Vida de las Piezas
+Criterio de Desgaste: Cada pieza del vehiculo (aceite, fajas, motor, etc.) tiene un limite de tiempo de vida util configurado, basado principalmente en el kilometraje recorrido.
+
+Tipos de Intervencion: Al cumplirse este limite, el sistema debe prever dos tipos de acciones:
+
+- Reparacion / Mantenimiento preventivo.
+
+- Cambio de pieza completo.
+
+2. Flujo y Logica de Alertas
+Cuando una pieza alcanza o supera el kilometraje limite establecido (por ejemplo, el kilometraje para el cambio de aceite o el cambio de fajas), el sistema debe disparar las siguientes notificaciones en paralelo:
+
+- Alerta en el Dashboard Administrador: El panel de control central debe mostrar una alerta indicando que vehiculo requiere mantenimiento preventivo de forma urgente.
+
+- Alerta al Conductor: El chofer asignado a dicha unidad debe recibir una notificacion en su propia cuenta (cuando inicie sesion en su aplicacion/perfil). Esta alerta le indicara que debe llevar el vehiculo a revision o al taller para el mantenimiento correspondiente.
+
+Ejemplo Practico
+Caso del Aceite/Fajas: Pasado cierto kilometraje predefinido para el motor, el sistema detecta que el aceite ha cumplido su vida util. Automaticamente, se genera la alerta en el Dashboard del administrador y, al mismo tiempo, se le notifica al chofer en su cuenta logueada para que proceda con el cambio de aceite y de fajas.
+
+===============================================================================

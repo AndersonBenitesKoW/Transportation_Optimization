@@ -95,8 +95,11 @@
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">ID Vehiculo *</label>
-              <input class="form-input" [disabled]="modo !== 'crear'" [(ngModel)]="form.id_vehiculo" placeholder="CAMION-008"
-                     required pattern="[A-Za-z0-9\-]+" title="Solo letras, numeros y guiones" />
+              <div class="form-input-prefix-group">
+                <span class="form-input-prefix">CAMION-</span>
+                <input class="form-input form-input--with-prefix" [disabled]="modo !== 'crear'" [(ngModel)]="idVehiculoNumero" placeholder="008"
+                       required pattern="[0-9]+" title="Solo numeros" />
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">Placa *</label>

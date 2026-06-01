@@ -23,7 +23,10 @@ export class UnidadesComponent implements OnInit {
   eliminarId: string | null = null;
 
   form: Partial<Vehiculo> = { id_vehiculo: '', placa: '', marca: '', modelo: '', anio: 2024, capacidad_tanque_L: 400, capacidad_carga_ton: 20, kilometraje_actual: 0, edad_motor_meses: 0, estado: 'Disponible', conductor_asignado: '' };
+  idVehiculoNumero: string = '';
   filtrarEstado: string = 'Todas';
+
+  private readonly PREFIJO_CAMION = 'CAMION-';
 
   NOMBRES_COMPONENTES_DEFAULT = ['motor', 'aceite', 'neumaticos', 'zapatas', 'mangueras', 'fajas'];
   nombresComponentes: string[] = [...this.NOMBRES_COMPONENTES_DEFAULT];
@@ -72,6 +75,7 @@ export class UnidadesComponent implements OnInit {
     this.nombresComponentes = [...this.NOMBRES_COMPONENTES_DEFAULT];
     this.nombresComponentesOriginales = [];
     this.componentesEliminados = [];
+    this.idVehiculoNumero = '';
     this.form = { id_vehiculo: '', placa: '', marca: '', modelo: '', anio: 2024, capacidad_tanque_L: 400, capacidad_carga_ton: 20, kilometraje_actual: 0, edad_motor_meses: 0, estado: 'Disponible', conductor_asignado: '' };
     this.resetComponentes();
     this.modalAbierto = true;
@@ -80,6 +84,7 @@ export class UnidadesComponent implements OnInit {
   abrirEditar(u: Vehiculo) {
     this.modo = 'editar'; this.vehiculoEditandoId = u.id_vehiculo; this.tabActiva = 'datos_base';
     this.form = { ...u };
+    this.idVehiculoNumero = u.id_vehiculo.startsWith(this.PREFIJO_CAMION) ? u.id_vehiculo.slice(this.PREFIJO_CAMION.length) : u.id_vehiculo;
     this.modalAbierto = true;
     this.cargarComponentes(u.id_vehiculo);
   }
@@ -87,6 +92,7 @@ export class UnidadesComponent implements OnInit {
   abrirConfigurar(u: Vehiculo) {
     this.modo = 'componentes'; this.vehiculoEditandoId = u.id_vehiculo;
     this.form = { ...u };
+    this.idVehiculoNumero = u.id_vehiculo.startsWith(this.PREFIJO_CAMION) ? u.id_vehiculo.slice(this.PREFIJO_CAMION.length) : u.id_vehiculo;
     this.modalAbierto = true;
     this.cargarComponentes(u.id_vehiculo).then(() => {
       this.tabActiva = this.nombresComponentes.length > 0 ? this.nombresComponentes[0] : 'datos_base';
@@ -155,7 +161,8 @@ export class UnidadesComponent implements OnInit {
 
   guardarTodo() {
     if (this.modo !== 'componentes') {
-      if (!this.form.id_vehiculo?.trim() || !this.form.placa?.trim()) { alert('Completa los campos obligatorios'); return; }
+      if (!this.idVehiculoNumero?.trim() || !this.form.placa?.trim()) { alert('Completa los campos obligatorios'); return; }
+      this.form.id_vehiculo = this.PREFIJO_CAMION + this.idVehiculoNumero.trim();
     }
     this.cargando = true;
 

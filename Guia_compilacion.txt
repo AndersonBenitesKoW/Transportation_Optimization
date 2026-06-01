@@ -22,7 +22,7 @@ Cada vez que vuelvas a trabajar en el proyecto, solo necesitas hacer esto:
 Para el Backend:
 1.	cd backend
 2.	.\venv\Scripts\activate
-    -py simulator.py
+    py simulator.py
 3.	uvicorn main:app --reload
 
 
