@@ -33,7 +33,6 @@ export class AuthService {
   public currentUser$ = this.currentUserSubject.asObservable();
 
   constructor() {
-    // Cargar usuario al iniciar
     const user = this.getUserFromStorage();
     if (user) {
       this.currentUserSubject.next(user);
@@ -61,13 +60,20 @@ export class AuthService {
     return this.currentUserValue?.rol === 'CONDUCTOR';
   }
 
-  // Login simple (sin Firebase Auth por ahora, solo validación local)
   login(email: string, password: string): Observable<any> {
-    // Por ahora hacemos login simulado contra la colección usuarios
-    return this.http.get<any>(`${environment.apiUrl}/api/usuarios?email=${email}`).pipe(
+    return this.http.post<any>(`${environment.apiUrl}/api/usuarios/login`, { email, password }).pipe(
       tap(response => {
         if (response.status === 'success' && response.data) {
-          const usuario = response.data;
+          const user = response.data;
+          const usuario: Usuario = {
+            uid: user.id || user.uid || '',
+            email: user.email,
+            nombre: user.nombre,
+            rol: user.rol,
+            empresa: user.empresa || 'Ransa',
+            telefono: user.telefono || '',
+            ref: user.ref || undefined
+          };
           localStorage.setItem('fleetmind_user', JSON.stringify(usuario));
           this.currentUserSubject.next(usuario);
         }
@@ -75,19 +81,19 @@ export class AuthService {
     );
   }
 
-  // Registro simple
   register(userData: any): Observable<any> {
-    return this.http.post<any>(`${environment.apiUrl}/api/usuarios`, userData).pipe(
+    return this.http.post<any>(`${environment.apiUrl}/api/usuarios/register`, userData).pipe(
       tap(response => {
         if (response.status === 'success') {
-          // Auto-login después del registro
+          const data = response.data;
           const usuario: Usuario = {
-            uid: response.data.uid,
+            uid: data.id || userData.email.split('@')[0],
             email: userData.email,
             nombre: userData.nombre,
-            rol: 'ADMIN',
-            empresa: userData.empresa,
-            telefono: userData.telefono
+            rol: userData.rol || 'CONDUCTOR',
+            empresa: userData.empresa || 'Ransa',
+            telefono: userData.telefono || '',
+            ref: data.ref || undefined
           };
           localStorage.setItem('fleetmind_user', JSON.stringify(usuario));
           this.currentUserSubject.next(usuario);
@@ -102,8 +108,6 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
-  // Método temporal para login rápido de prueba
-  // Modifica la firma de la función para aceptar refCamion
   loginDemo(rol: 'ADMIN' | 'CONDUCTOR', refCamion?: string): void {
     const usuario: Usuario = rol === 'ADMIN' 
       ? {
@@ -119,7 +123,6 @@ export class AuthService {
           nombre: `Conductor de ${refCamion}`,
           rol: 'CONDUCTOR',
           empresa: 'Ransa',
-          // AQUÍ ESTÁ LA CLAVE: Usamos el camión que nos pasan, o el 001 por defecto
           ref: refCamion || 'CAMION-001' 
         };
     

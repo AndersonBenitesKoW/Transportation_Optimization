@@ -1,0 +1,194 @@
+<div class="crud-page">
+  <div class="crud-header">
+    <div>
+      <h1 class="crud-title">
+        <lucide-icon [img]="shield" class="w-6 h-6"></lucide-icon>
+        Gestion de Usuarios
+      </h1>
+      <p class="crud-subtitle">{{ usuarios.length }} usuarios registrados ({{ conteoAdmin }} admin, {{ conteoConductor }} conductor)</p>
+    </div>
+    <button (click)="abrirNuevo()" [disabled]="cargando" class="crud-btn-primary">
+      <lucide-icon [img]="plus" class="w-4 h-4"></lucide-icon>
+      Nuevo Usuario
+    </button>
+  </div>
+
+  <div *ngIf="error" class="crud-error">{{ error }}</div>
+
+  <div *ngIf="cargando && usuarios.length === 0" class="crud-loading">
+    <div class="crud-spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
+
+  <div class="crud-table-wrapper">
+    <table class="crud-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Email</th>
+          <th>Password</th>
+          <th>Telefono</th>
+          <th>Rol</th>
+          <th>Vehiculo Asig.</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let u of usuarios" class="crud-row">
+          <td class="crud-cell-id">{{ u.nombre }}</td>
+          <td>{{ u.email }}</td>
+          <td>
+            <code class="usuarios-password">{{ u.password || '---' }}</code>
+          </td>
+          <td>{{ u.telefono || '---' }}</td>
+          <td>
+            <span class="badge" [class.badge--admin]="u.rol === 'ADMIN'" [class.badge--conductor]="u.rol === 'CONDUCTOR'">{{ u.rol }}</span>
+          </td>
+          <td>{{ u.ref || (u.id_conductor || '---') }}</td>
+          <td class="crud-actions">
+            <button (click)="abrirEditar(u)" class="card-btn-icon card-btn-edit" [disabled]="cargando">
+              <lucide-icon [img]="pencil" class="w-4 h-4"></lucide-icon>
+            </button>
+            <button (click)="confirmarEliminar(u.id!)" class="card-btn-icon card-btn-delete" [disabled]="cargando">
+              <lucide-icon [img]="trash2" class="w-4 h-4"></lucide-icon>
+            </button>
+          </td>
+        </tr>
+        <tr *ngIf="usuarios.length === 0">
+          <td colspan="7" style="text-align:center;color:var(--text-secondary);padding:32px">No hay usuarios registrados</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MODAL CREAR/EDITAR -->
+  <div *ngIf="modalAbierto" class="modal-overlay" (click)="cerrarModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">{{ modo === 'crear' ? 'Nuevo Usuario' : 'Editar Usuario' }}</h2>
+        <button (click)="cerrarModal()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- TOGGLE: ADMIN / CONDUCTOR (solo en creacion) -->
+        <div *ngIf="modo === 'crear'" class="usuarios-tipo-toggle">
+          <button (click)="cambiarTipo('admin')"
+                  [class.usuarios-tipo-btn--active]="modoTipo === 'admin'"
+                  class="usuarios-tipo-btn">
+            <span class="usuarios-tipo-icon">&#128737;</span> Agregar Administrador
+          </button>
+          <button (click)="cambiarTipo('conductor')"
+                  [class.usuarios-tipo-btn--active]="modoTipo === 'conductor'"
+                  class="usuarios-tipo-btn">
+            <span class="usuarios-tipo-icon">&#128100;</span> Agregar Conductor
+          </button>
+        </div>
+
+        <!-- MODO: ADMINISTRADOR -->
+        <ng-container *ngIf="modoTipo === 'admin' || modo === 'editar'">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nombre *</label>
+              <input type="text" class="form-input" [(ngModel)]="form.nombre" placeholder="Juan Perez" [disabled]="modo === 'editar' && form.rol === 'CONDUCTOR'" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email *</label>
+              <input type="email" class="form-input" [(ngModel)]="form.email" placeholder="juan@empresa.com" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Password {{ modo === 'crear' ? '*' : '(dejar vacio para no cambiar)' }}</label>
+              <div class="form-input-group">
+                <input [type]="mostrarPassword ? 'text' : 'password'" class="form-input" [(ngModel)]="form.password" placeholder="••••••" />
+                <button type="button" class="form-input-toggle" (click)="mostrarPassword = !mostrarPassword">{{ mostrarPassword ? 'Ocultar' : 'Mostrar' }}</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Telefono</label>
+              <input type="text" class="form-input" [(ngModel)]="form.telefono" placeholder="987654321" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Rol</label>
+            <select class="form-input" [(ngModel)]="form.rol" [disabled]="modo === 'crear'">
+              <option value="ADMIN">Administrador</option>
+              <option value="CONDUCTOR">Conductor</option>
+            </select>
+          </div>
+        </ng-container>
+
+        <!-- MODO: CONDUCTOR (autocomplete desde el CRUD) -->
+        <ng-container *ngIf="modoTipo === 'conductor' && modo === 'crear'">
+          <p class="usuarios-tipo-desc">Selecciona un conductor del CRUD de Conductores para crearle una cuenta de acceso.</p>
+
+          <div class="form-group">
+            <label class="form-label">Conductor *</label>
+            <div class="usuarios-autocomplete">
+              <div class="usuarios-autocomplete-input-wrap">
+                <lucide-icon [img]="search" class="w-4 h-4 usuarios-autocomplete-icon"></lucide-icon>
+                <input type="text"
+                       class="form-input form-input--with-icon"
+                       [(ngModel)]="busquedaConductor"
+                       (input)="onBuscarConductor()"
+                       (focus)="onFocusConductor()"
+                       (blur)="ocultarDropdown()"
+                       [placeholder]="form.id_conductor ? conductorSeleccionadoText : 'Buscar conductor...'"
+                       autocomplete="off" />
+                <button *ngIf="form.id_conductor" type="button" class="usuarios-autocomplete-clear"
+                        (mousedown)="$event.preventDefault(); limpiarConductor()">&times;</button>
+              </div>
+              <div *ngIf="mostrandoDropdown && conductoresFiltrados.length > 0" class="usuarios-autocomplete-list">
+                <div *ngFor="let c of conductoresFiltrados"
+                     (mousedown)="seleccionarConductor(c)"
+                     class="usuarios-autocomplete-item">
+                  <span class="usuarios-autocomplete-item-name">{{ c.nombre }}</span>
+                  <span class="usuarios-autocomplete-item-id">{{ c.id_conductor }}</span>
+                </div>
+              </div>
+              <div *ngIf="mostrandoDropdown && busquedaConductor && conductoresFiltrados.length === 0" class="usuarios-autocomplete-empty">
+                No se encontraron conductores disponibles
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="form.id_conductor">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Email *</label>
+                <input type="email" class="form-input" [(ngModel)]="form.email" placeholder="juan@empresa.com" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Password *</label>
+                <div class="form-input-group">
+                  <input [type]="mostrarPassword ? 'text' : 'password'" class="form-input" [(ngModel)]="form.password" placeholder="••••••" />
+                  <button type="button" class="form-input-toggle" (click)="mostrarPassword = !mostrarPassword">{{ mostrarPassword ? 'Ocultar' : 'Mostrar' }}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+      <div class="modal-footer">
+        <button (click)="cerrarModal()" class="btn btn--ghost" [disabled]="cargando">Cancelar</button>
+        <button (click)="guardar()" class="btn btn--primary" [disabled]="cargando">{{ cargando ? 'Guardando...' : (modo === 'crear' ? 'Crear Usuario' : 'Actualizar') }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ELIMINAR -->
+  <div *ngIf="modalEliminar" class="modal-overlay" (click)="cancelarEliminar()">
+    <div class="modal modal--sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">Confirmar Eliminacion</h2>
+        <button (click)="cancelarEliminar()" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-text">Estas seguro de eliminar este usuario? Esta accion no se puede deshacer.</p>
+      </div>
+      <div class="modal-footer">
+        <button (click)="cancelarEliminar()" class="btn btn--ghost">Cancelar</button>
+        <button (click)="ejecutarEliminar()" class="btn btn--danger">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>

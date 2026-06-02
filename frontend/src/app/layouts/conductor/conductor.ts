@@ -20,9 +20,14 @@ import * as L from 'leaflet';
 export class ConductorComponent implements OnInit, OnDestroy {
   usuarioActual: any = null;
   miCamion: any = null;
+  sinTelemetria: boolean = false;
   chatAbierto: boolean = false;
   mostrarConfirmacion: boolean = false;
   cargandoLogout: boolean = false;
+  alertasMantenimiento: any[] = [];
+  origenNombre: string = '';
+  distanciaTotalKm: number = 0;
+  private ultimaPosOrigen: string = '';
 
   logOut = 'log-out';
   sun = 'sun';
@@ -35,6 +40,8 @@ export class ConductorComponent implements OnInit, OnDestroy {
   alertTriangle = 'alert-triangle';
   truck = 'truck';
   zap = 'zap';
+
+  wrench = 'wrench';
 
   private apiService = inject(ApiService);
   private authService = inject(AuthService);
@@ -52,6 +59,7 @@ export class ConductorComponent implements OnInit, OnDestroy {
   private map!: L.Map;
   private marker!: L.Marker;
   private destMarker!: L.Marker;
+  private origenMarker!: L.Marker;
   private routeLine: L.Polyline | null = null;
   private rutaAnterior: string = '';
   private pollSub?: Subscription;
@@ -92,6 +100,7 @@ export class ConductorComponent implements OnInit, OnDestroy {
         const datos = res.data?.find((c: any) => c.id_camion === this.usuarioActual?.ref);
         if (datos) {
           this.miCamion = datos;
+          this.sinTelemetria = false;
           if (!this.map) {
             setTimeout(() => this.iniciarMapa(), 400);
           } else {
@@ -100,9 +109,19 @@ export class ConductorComponent implements OnInit, OnDestroy {
               this.actualizarMapaConductor();
             }, 100);
           }
+        } else if (!this.miCamion) {
+          this.cargarDesdeCRUD();
         }
       },
-      error: (err: any) => console.error('Error obteniendo datos de flota:', err)
+      error: (err: any) => {
+        console.error('Error obteniendo datos de flota:', err);
+        if (!this.miCamion) { this.cargarDesdeCRUD(); }
+      }
+    });
+
+    this.apiService.getMantenimientoAlertas(this.usuarioActual?.ref).subscribe({
+      next: (r: any) => { this.alertasMantenimiento = r.data || []; },
+      error: (e: any) => console.error('Error alertas mantenimiento conductor:', e)
     });
   }
 
@@ -145,6 +164,46 @@ export class ConductorComponent implements OnInit, OnDestroy {
 
   toggleChat() {
     this.chatAbierto = !this.chatAbierto;
+  }
+
+  cargarDesdeCRUD() {
+    const ref = this.usuarioActual?.ref;
+    if (!ref) return;
+    this.apiService.getVehiculo(ref).subscribe({
+      next: (r: any) => {
+        const v = r.data;
+        if (v) {
+          this.miCamion = {
+            id_camion: v.id_vehiculo,
+            placa: v.placa,
+            marca: v.marca,
+            modelo: v.modelo,
+            anio: v.anio,
+            estado: v.estado,
+            kilometraje: v.kilometraje_actual,
+            kilometraje_actual: v.kilometraje_actual,
+            capacidad_tanque_L: v.capacidad_tanque_L,
+            combustible_actual_L: 0,
+            nivel_combustible_pct: 0,
+            conductor_asignado: { nombre: v.conductor_asignado || 'No asignado', telefono: '' },
+            mision: v.estado,
+            viaje_activo: false,
+            destino: { nombre: '--' },
+            distancia_restante_km: 0,
+            ubicacion: { lat: -8.1159, lng: -79.0299 },
+            puntos_ruta: []
+          };
+          this.sinTelemetria = true;
+          this.origenNombre = '';
+          this.distanciaTotalKm = 0;
+          this.ultimaPosOrigen = '';
+          if (!this.map) {
+            setTimeout(() => this.iniciarMapa(), 400);
+          }
+        }
+      },
+      error: () => console.error('Error cargando vehiculo desde CRUD')
+    });
   }
 
   iniciarViajeConductor() {
@@ -254,6 +313,27 @@ export class ConductorComponent implements OnInit, OnDestroy {
       });
     }
 
+    const posOrigen = this.miCamion.puntos_ruta?.length > 0
+      ? L.latLng(this.miCamion.puntos_ruta[0].lat, this.miCamion.puntos_ruta[0].lng)
+      : posActual;
+
+    const origenKey = `${posOrigen.lat.toFixed(4)},${posOrigen.lng.toFixed(4)}`;
+    if (origenKey !== this.ultimaPosOrigen) {
+      this.ultimaPosOrigen = origenKey;
+      this.buscarNombreOrigen(posOrigen.lat, posOrigen.lng);
+      this.distanciaTotalKm = this.calcularDistanciaDirectaOrigen(posOrigen.lat, posOrigen.lng, posDestino.lat, posDestino.lng);
+    }
+
+    if (this.origenMarker) {
+      this.origenMarker.setLatLng(posOrigen);
+      this.origenMarker.setTooltipContent('Inicio del Viaje');
+    } else if (this.miCamion.viaje_activo || this.miCamion.puntos_ruta?.length > 0) {
+      this.origenMarker = L.marker(posOrigen, { icon: this.darkIcon }).addTo(this.map);
+      this.origenMarker.bindTooltip('Inicio del Viaje', {
+        permanent: true, direction: 'top', offset: [0, -30], className: 'etiqueta-camion'
+      });
+    }
+
     this.mapaDibujarRuta(posActual, posDestino);
   }
 
@@ -270,11 +350,33 @@ export class ConductorComponent implements OnInit, OnDestroy {
       this.routeLine.setLatLngs(puntosRuta);
     } else {
       this.routeLine = L.polyline(puntosRuta, {
-        color: '#FF6B00', opacity: 0.85, weight: 5,
-        dashArray: '10 6', lineCap: 'round', lineJoin: 'round'
+        color: '#f97316', opacity: 0.8, weight: 4,
+        lineCap: 'round', lineJoin: 'round'
       }).addTo(this.map);
     }
   }
+
+  private buscarNombreOrigen(lat: number, lng: number) {
+    if (!lat || !lng) return;
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&countrycodes=pe&zoom=16`;
+    fetch(url).then(res => res.json()).then((data: any) => {
+      if (data?.display_name) {
+        this.origenNombre = data.display_name.split(',').slice(0, 3).join(',').trim();
+      }
+    }).catch(() => {});
+  }
+
+  private calcularDistanciaDirectaOrigen(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    if (!lat1 || !lng1 || !lat2 || !lng2) return 0;
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c * 10) / 10;
+  }
+
+  min(a: number, b: number): number { return Math.min(a, b); }
 
   enviarConsulta() {
     if (!this.mensajeNuevo.trim() || this.cargandoIA) return;

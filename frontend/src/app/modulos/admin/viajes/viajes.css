@@ -317,3 +317,564 @@
 }
 
 .btn--primary:disabled { opacity: 0.5; }
+
+.viaje-ruta-section {
+  margin-bottom: 15px;
+  padding: 12px;
+  background: var(--bg-secondary, #f8fafc);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.viaje-ruta-title {
+  margin: 0 0 4px 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+}
+
+.viaje-ruta-desc {
+  margin: 0 0 12px 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.viaje-ruta-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.viaje-coords {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.viaje-mapa-botones {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.viaje-mapa-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.viaje-mapa-btn:hover {
+  border-color: var(--color-orange-500);
+  background: rgba(255, 107, 0, 0.05);
+}
+
+.viaje-mapa-btn--origen.viaje-mapa-btn--active {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+}
+
+.viaje-mapa-btn--destino.viaje-mapa-btn--active {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.viaje-mapa-btn-icon {
+  font-size: 1rem;
+}
+
+.viaje-mapa-hint {
+  margin: 0 0 8px 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-orange-500);
+  text-align: center;
+}
+
+.viaje-mapa {
+  height: 250px;
+  border-radius: 8px;
+  border: 2px solid var(--border-color);
+  cursor: crosshair;
+}
+
+/* UBICACION INICIAL */
+.viaje-ubicacion-section {
+  margin-bottom: 12px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.viaje-ubicacion-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(100, 116, 139, 0.06);
+  cursor: pointer;
+  user-select: none;
+  flex-wrap: wrap;
+}
+
+.viaje-ubicacion-toggle {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.viaje-ubicacion-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.viaje-ubicacion-required {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #ef4444;
+  text-transform: uppercase;
+}
+
+.viaje-ubicacion-body {
+  padding: 12px;
+  background: rgba(100, 116, 139, 0.03);
+}
+
+.viaje-ubicacion-desc {
+  margin: 0 0 10px 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.viaje-ubicacion-botones {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.viaje-ubicacion-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.viaje-ubicacion-btn:hover {
+  border-color: var(--color-orange-500);
+}
+
+.viaje-ubicacion-btn--search:hover {
+  border-color: var(--color-orange-500);
+  background: rgba(255, 107, 0, 0.05);
+}
+
+.viaje-ubicacion-btn--map.viaje-ubicacion-btn--active {
+  border-color: #64748b;
+  background: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
+.viaje-ubicacion-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.viaje-ubicacion-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+.viaje-ubicacion-coords span:first-child {
+  font-weight: 700;
+}
+
+.viaje-ubicacion-coords span:last-child {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+/* REPOSICION */
+.viaje-reposicion-section {
+  margin-bottom: 12px;
+  border: 1px dashed var(--color-orange-500);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.viaje-reposicion-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 107, 0, 0.06);
+  cursor: pointer;
+  user-select: none;
+}
+
+.viaje-reposicion-toggle {
+  font-size: 0.7rem;
+  color: var(--color-orange-500);
+}
+
+.viaje-reposicion-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.viaje-reposicion-badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--color-orange-500);
+  color: #fff;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.viaje-reposicion-body {
+  padding: 12px;
+  background: rgba(255, 107, 0, 0.03);
+}
+
+.viaje-reposicion-desc {
+  margin: 0 0 10px 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.viaje-reposicion-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.viaje-reposicion-point {
+  flex: 1;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.viaje-reposicion-point-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.viaje-reposicion-point-name {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.viaje-reposicion-point-coords {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+}
+
+.viaje-reposicion-arrow {
+  font-size: 1.2rem;
+  color: var(--color-orange-500);
+  font-weight: 700;
+}
+
+.viaje-reposicion-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  background: linear-gradient(to right, var(--color-orange-500), var(--color-orange-400));
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.viaje-reposicion-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(255, 107, 0, 0.3);
+}
+
+.viaje-reposicion-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* TABS DE FILTRO */
+.crud-filter-tabs {
+  display: flex;
+  gap: 0;
+  margin-left: 12px;
+}
+
+.crud-filter-tab {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.crud-filter-tab:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.crud-filter-tab:last-child {
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+}
+
+.crud-filter-tab--active {
+  background: var(--color-orange-500);
+  color: #fff;
+  border-color: var(--color-orange-500);
+}
+
+.badge--reposicion {
+  background: rgba(255, 107, 0, 0.12);
+  color: var(--color-orange-500);
+}
+
+/* AUTOCOMPLETE */
+.viaje-input-group {
+  position: relative;
+}
+
+.viaje-autocomplete {
+  position: relative;
+}
+
+.viaje-autocomplete-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.viaje-autocomplete-icon-vehiculo {
+  position: absolute;
+  left: 10px;
+  z-index: 1;
+  pointer-events: none;
+  color: var(--text-secondary);
+}
+
+.form-input--with-icon {
+  padding-left: 36px !important;
+  padding-right: 32px !important;
+}
+
+.viaje-autocomplete-clear {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+  z-index: 1;
+}
+
+.viaje-autocomplete-clear:hover { color: var(--color-danger); }
+
+.viaje-autocomplete-list {
+  position: absolute;
+  z-index: 2100;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0 0 10px 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.viaje-autocomplete-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.15s;
+}
+
+.viaje-autocomplete-item:last-child { border-bottom: none; }
+
+.viaje-autocomplete-item:hover { background: rgba(255, 107, 0, 0.08); }
+
+.viaje-autocomplete-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viaje-autocomplete-item-id {
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+}
+
+.viaje-autocomplete-item-info {
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+}
+
+.viaje-autocomplete-item-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.viaje-autocomplete-item-km {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+.viaje-autocomplete-item-estado {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.viaje-autocomplete-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* AUTOCOMPLETE */
+.viaje-input-group {
+  position: relative;
+}
+
+.viaje-autocomplete {
+  position: relative;
+}
+
+.viaje-autocomplete-list {
+  position: absolute;
+  z-index: 2100;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 0 0 8px 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.viaje-autocomplete-list li {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border-color);
+  transition: background-color 0.15s;
+}
+
+.viaje-autocomplete-list li:last-child {
+  border-bottom: none;
+  border-radius: 0 0 8px 8px;
+}
+
+.viaje-autocomplete-list li:hover {
+  background: rgba(255, 107, 0, 0.08);
+}
+
+.viaje-autocomplete-name {
+  display: block;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  margin-bottom: 1px;
+}
+
+.viaje-autocomplete-detail {
+  display: block;
+  font-size: 0.6875rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.viaje-autocomplete-loading {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.viaje-autocomplete-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-color);
+  border-top-color: var(--color-orange-500);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@media (max-width: 600px) {
+  .viaje-ruta-inputs {
+    grid-template-columns: 1fr;
+  }
+  .viaje-mapa-botones {
+    flex-direction: column;
+  }
+}

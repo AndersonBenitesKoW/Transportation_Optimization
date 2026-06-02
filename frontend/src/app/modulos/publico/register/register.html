@@ -78,6 +78,14 @@
           </div>
 
           <div class="register-field">
+            <label class="register-label">Rol</label>
+            <select [(ngModel)]="formData.rol" name="rol" class="register-input">
+              <option value="CONDUCTOR">Conductor</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </div>
+
+          <div class="register-field">
             <label class="register-label">Contrasena</label>
             <div class="register-password-wrapper">
               <input [type]="mostrarPassword ? 'text' : 'password'" [(ngModel)]="formData.password"

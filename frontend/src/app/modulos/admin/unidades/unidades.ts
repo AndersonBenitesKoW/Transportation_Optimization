@@ -61,6 +61,16 @@ export class UnidadesComponent implements OnInit {
 
   get filtradas(): Vehiculo[] { return this.filtrarEstado === 'Todas' ? this.unidades : this.unidades.filter(u => u.estado === this.filtrarEstado); }
 
+  get conductoresDisponibles(): Conductor[] {
+    const asignados = this.unidades
+      .filter(u => u.id_vehiculo !== this.vehiculoEditandoId)
+      .map(u => u.conductor_asignado)
+      .filter(Boolean);
+    return this.conductores.filter(c =>
+      !asignados.includes(c.id_conductor) || c.id_conductor === this.form.conductor_asignado
+    );
+  }
+
   cambiarTab(tab: string) { this.tabActiva = tab; }
 
   resetComponentes() {

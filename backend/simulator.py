@@ -9,9 +9,9 @@ db = db_manager.get_db()
 OSRM_URL = "http://router.project-osrm.org/route/v1/driving/"
 
 # --- PARÁMETROS ESTÁNDAR DE CARGA PESADA ---
-VELOCIDAD_CRUCERO_KMH = 45  # Velocidad promedio urbana para camiones
-CONSUMO_PROMEDIO_L_KM = 0.35 # 35 litros por cada 100km
-INTERVALO_SIMULACION_SEG = 10 
+VELOCIDAD_CRUCERO_KMH = 45
+CONSUMO_PROMEDIO_L_KM = 0.35
+INTERVALO_SIMULACION_SEG = 10
 
 CONDUCTORES = {
     "C-001": {"nombre": "Juan Pérez", "licencia": "A3B", "telefono": "987654321"},
@@ -29,14 +29,17 @@ DESTINOS = [
     {"nombre": "Centro Histórico", "lat": -8.1118, "lng": -79.0287}
 ]
 
-# --- CAPACIDADES REALES DE TANQUES ---
-CAMIONES = [
-    {"id": "CAMION-001", "id_conductor": "C-001", "lat": -8.1159, "lng": -79.0299, "km": 85000.0, "combustible": 750.0, "capacidad_tanque_L": 800.0, "edad": 24, "destino": DESTINOS[0], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0},
-    {"id": "CAMION-002", "id_conductor": "C-002", "lat": -8.1020, "lng": -79.0260, "km": 210500.0, "combustible": 300.0, "capacidad_tanque_L": 600.0, "edad": 72, "destino": DESTINOS[3], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0},
-    {"id": "CAMION-003", "id_conductor": "C-003", "lat": -8.1259, "lng": -79.0399, "km": 45300.0, "combustible": 100.0, "capacidad_tanque_L": 500.0, "edad": 12, "destino": DESTINOS[1], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0},
-    {"id": "CAMION-004", "id_conductor": "C-004", "lat": -8.0959, "lng": -79.0099, "km": 98200.0, "combustible": 500.0, "capacidad_tanque_L": 800.0, "edad": 36, "destino": DESTINOS[2], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0},
-    {"id": "CAMION-005", "id_conductor": "C-005", "lat": -8.1100, "lng": -79.0400, "km": 15000.0, "combustible": 400.0, "capacidad_tanque_L": 400.0, "edad": 6, "destino": DESTINOS[4], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0},
+# --- CAMIONES ESTÁTICOS (SIEMPRE EN SIMULADOR) ---
+CAMIONES_BASE = [
+    {"id": "CAMION-001", "id_conductor": "C-001", "lat": -8.1159, "lng": -79.0299, "km": 85000.0, "combustible": 750.0, "capacidad_tanque_L": 800.0, "edad": 24, "destino": DESTINOS[0], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0, "es_estatico": True},
+    {"id": "CAMION-002", "id_conductor": "C-002", "lat": -8.1020, "lng": -79.0260, "km": 210500.0, "combustible": 300.0, "capacidad_tanque_L": 600.0, "edad": 72, "destino": DESTINOS[3], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0, "es_estatico": True},
+    {"id": "CAMION-003", "id_conductor": "C-003", "lat": -8.1259, "lng": -79.0399, "km": 45300.0, "combustible": 100.0, "capacidad_tanque_L": 500.0, "edad": 12, "destino": DESTINOS[1], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0, "es_estatico": True},
+    {"id": "CAMION-004", "id_conductor": "C-004", "lat": -8.0959, "lng": -79.0099, "km": 98200.0, "combustible": 500.0, "capacidad_tanque_L": 800.0, "edad": 36, "destino": DESTINOS[2], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0, "es_estatico": True},
+    {"id": "CAMION-005", "id_conductor": "C-005", "lat": -8.1100, "lng": -79.0400, "km": 15000.0, "combustible": 400.0, "capacidad_tanque_L": 400.0, "edad": 6, "destino": DESTINOS[4], "ruta_puntos": [], "indice_ruta": 0, "finalizado": False, "distancia_total_ruta": 0, "incidentes_conteo": 0, "es_estatico": True},
 ]
+
+IDS_ESTATICOS = {"CAMION-001", "CAMION-002", "CAMION-003", "CAMION-004", "CAMION-005"}
+
 
 def obtener_ruta_detallada(camion_id, start_lat, start_lng, end_lat, end_lng):
     print(f"🌐 OSRM: {camion_id} consultando ruta ({start_lat:.4f},{start_lng:.4f}) → ({end_lat:.4f},{end_lng:.4f})...")
@@ -55,17 +58,31 @@ def obtener_ruta_detallada(camion_id, start_lat, start_lng, end_lat, end_lng):
         print(f"❌ OSRM ERROR [{camion_id}]: {type(e).__name__}: {e}")
     return [], 0
 
+
+def obtener_conductor_nombre(id_conductor):
+    if id_conductor in CONDUCTORES:
+        return CONDUCTORES[id_conductor]["nombre"]
+    try:
+        doc = db.collection('conductores').document(id_conductor).get()
+        if doc.exists:
+            return doc.to_dict().get('nombre', id_conductor)
+    except:
+        pass
+    return id_conductor
+
+
 def registrar_incidente(camion_id, conductor_id, tipo, descripcion, lat, lng):
     incidente = {
         "fecha_hora": datetime.now(),
         "id_camion": camion_id,
-        "conductor": CONDUCTORES.get(conductor_id, "Desconocido"),
+        "conductor": obtener_conductor_nombre(conductor_id),
         "tipo_alerta": tipo,
         "descripcion": descripcion,
         "ubicacion_incidente": {"lat": lat, "lng": lng},
         "estado": "Abierto"
     }
     db.collection(u'incidentes_flota').add(incidente)
+
 
 def registrar_viaje_finalizado(camion):
     if "stats" not in camion:
@@ -81,7 +98,7 @@ def registrar_viaje_finalizado(camion):
     viaje_doc = {
         "id_vehiculo": camion["id"],
         "id_conductor": camion["id_conductor"],
-        "conductor": CONDUCTORES[camion["id_conductor"]]["nombre"],
+        "conductor": obtener_conductor_nombre(camion["id_conductor"]),
         "origen_viaje": {"nombre": "Base Central", "lat": camion["stats"]["lat_inicial"], "lng": camion["stats"]["lng_inicial"]},
         "destino_viaje": camion["destino"],
         "destino_nombre": camion["destino"]["nombre"],
@@ -102,82 +119,195 @@ def registrar_viaje_finalizado(camion):
     db.collection(u'historial_viajes').add(viaje_doc)
     print(f"🏁 VIAJE FINALIZADO: {camion['id']} a {camion['destino']['nombre']} | Km: {round(km_inicio, 1)} → {round(km_fin, 1)} (+{round(km_recorridos, 1)})")
 
+
+def actualizar_combustible_virtual(combustible_actual_L, capacidad_tanque_L):
+    if combustible_actual_L <= 0:
+        return capacidad_tanque_L
+    return combustible_actual_L
+
+
+def cargar_camiones_dinamicos(camiones_actuales):
+    try:
+        docs = db.collection('vehiculos').stream()
+        for doc in docs:
+            v = doc.to_dict()
+            vid = v.get('id_vehiculo', doc.id)
+            if vid in IDS_ESTATICOS:
+                continue
+            if vid in camiones_actuales:
+                continue
+
+            tele_ref = db.collection('telemetria_flota').document(vid)
+            tele_doc = tele_ref.get()
+            if tele_doc.exists:
+                tele = tele_doc.to_dict()
+                km = tele.get('kilometraje', v.get('kilometraje_actual', 0))
+                combustible = tele.get('combustible_actual_L', v.get('capacidad_tanque_L', 400) * 0.9)
+                lat = tele.get('ubicacion', {}).get('lat', -8.1159)
+                lng = tele.get('ubicacion', {}).get('lng', -79.0299)
+                viaje_activo = tele.get('viaje_activo', False)
+                destino_actual = tele.get('destino', random.choice(DESTINOS))
+            else:
+                km = v.get('kilometraje_actual', 0)
+                combustible = int(v.get('capacidad_tanque_L', 400) * 0.9)
+                lat = -8.1159
+                lng = -79.0299
+                viaje_activo = False
+                destino_actual = random.choice(DESTINOS)
+
+            nuevo = {
+                "id": vid,
+                "id_conductor": v.get('conductor_asignado', 'C-001'),
+                "lat": lat,
+                "lng": lng,
+                "km": float(km),
+                "combustible": float(combustible),
+                "capacidad_tanque_L": float(v.get('capacidad_tanque_L', 400)),
+                "edad": int(v.get('edad_motor_meses', 0)),
+                "destino": destino_actual,
+                "ruta_puntos": [],
+                "indice_ruta": 0,
+                "finalizado": not viaje_activo,
+                "distancia_total_ruta": 0,
+                "incidentes_conteo": 0,
+                "es_estatico": False
+            }
+            camiones_actuales[vid] = nuevo
+
+            if not tele_doc.exists:
+                tele_ref.set({
+                    "id_camion": vid,
+                    "conductor_asignado": {"nombre": obtener_conductor_nombre(v.get('conductor_asignado', '')), "id_conductor": v.get('conductor_asignado', '')},
+                    "ubicacion": {"lat": lat, "lng": lng},
+                    "kilometraje": float(km),
+                    "combustible_actual_L": float(combustible),
+                    "capacidad_tanque_L": float(v.get('capacidad_tanque_L', 400)),
+                    "nivel_combustible_pct": round((combustible / float(v.get('capacidad_tanque_L', 400))) * 100, 2) if float(v.get('capacidad_tanque_L', 400)) > 0 else 0,
+                    "estado_motor": "Optimo",
+                    "edad_motor_meses": int(v.get('edad_motor_meses', 0)),
+                    "horas_conduccion": 0,
+                    "temperatura_motor": 0,
+                    "consumo_instante": 0,
+                    "destino": destino_actual,
+                    "mision": "Esperando orden",
+                    "distancia_restante_km": 0,
+                    "ultima_actualizacion": datetime.now(),
+                    "viaje_activo": False,
+                    "km_inicio_viaje": float(km),
+                    "puntos_ruta": []
+                })
+                print(f"🆕 {vid}: nuevo vehículo del CRUD inicializado en telemetria")
+            else:
+                print(f"🔄 {vid}: vehículo dinámico cargado desde Firestore (km={round(km, 1)})")
+
+        ids_actuales = set(camiones_actuales.keys())
+        for vid in list(ids_actuales):
+            if vid not in IDS_ESTATICOS:
+                vdoc = db.collection('vehiculos').document(vid).get()
+                if not vdoc.exists:
+                    print(f"🗑️ {vid}: vehículo eliminado del CRUD, removiendo de simulación")
+                    del camiones_actuales[vid]
+
+    except Exception as e:
+        print(f"⚠️ Error cargando camiones dinámicos: {e}")
+
+
+def actualizar_componentes_kilometraje(vid, distancia_km):
+    try:
+        comp_ref = db.collection('vehiculos').document(vid).collection('componentes').document('data')
+        comp_doc = comp_ref.get()
+        if not comp_doc.exists:
+            return
+        data = comp_doc.to_dict()
+        actualizado = False
+        for nombre, comp in data.items():
+            if isinstance(comp, dict):
+                comp['kilometraje_acumulado'] = round(comp.get('kilometraje_acumulado', 0) + distancia_km, 2)
+                actualizado = True
+        if actualizado:
+            comp_ref.set(data, merge=True)
+    except Exception as e:
+        pass
+
+
 def actualizar_flota():
     print("🚀 FleetMind AI: Iniciando motor de física y trazabilidad real...")
-    
+
+    camiones_dinamicos = {}
+    contador_sincronizacion = 0
+
     tick = 0
     while True:
         tick += 1
+
+        contador_sincronizacion += 1
+        if contador_sincronizacion >= 6:
+            cargar_camiones_dinamicos(camiones_dinamicos)
+            contador_sincronizacion = 0
+
         camiones_en_ruta = 0
-        
-        for camion in CAMIONES:
+        todos = CAMIONES_BASE + list(camiones_dinamicos.values())
+
+        for camion in todos:
+            vid = camion["id"]
+            es_estatico = camion.get("es_estatico", False)
+
             # =================================================================
-            # NUEVO MÓDULO: SINCRONIZACIÓN FÍSICA A PRUEBA DE SOBRESCRITURAS
+            # SINCRONIZACIÓN CON TELEMETRÍA FIREBASE
             # =================================================================
             try:
-                doc_ia = db.collection(u'telemetria_flota').document(camion["id"]).get()
+                doc_ia = db.collection(u'telemetria_flota').document(vid).get()
                 if doc_ia.exists:
                     datos_ia = doc_ia.to_dict()
-                    
-                    # 1. ¿EL CONDUCTOR DETUVO EL VIAJE?
+
                     if datos_ia.get("viaje_activo") == False:
                         if not camion.get("finalizado"):
-                            print(f"🛑 {camion['id']}: Viaje detenido desde la App.")
+                            print(f"🛑 {vid}: Viaje detenido desde la App.")
                             camion["finalizado"] = True
-                        continue 
-                    
-                    # 2. ¿HAY UNA ORDEN NUEVA EXPRESA DESDE EL ADMIN? (Revisamos la Bandera)
+                        continue
+
                     if datos_ia.get("nueva_orden") == True:
-                        print(f"🤖 ¡Orden Externa Detectada! Enrutando {camion['id']}")
-                        
+                        print(f"🤖 ¡Orden Externa Detectada! Enrutando {vid}")
                         camion["finalizado"] = False
                         camion["destino"] = datos_ia.get("destino", camion["destino"])
-                        
-                        # Extraemos los puntos exactos que trazó el Administrador
+
                         if "puntos_ruta" in datos_ia and len(datos_ia["puntos_ruta"]) > 0:
                             nueva_ruta = []
                             for p in datos_ia["puntos_ruta"]:
                                 lat = p["lat"] if isinstance(p, dict) else p[0]
                                 lng = p["lng"] if isinstance(p, dict) else p[1]
-                                nueva_ruta.append([lng, lat]) # Formato [Lng, Lat] para que el camión no se pierda
+                                nueva_ruta.append([lng, lat])
                             camion["ruta_puntos"] = nueva_ruta
                         else:
-                            pts, _ = obtener_ruta_detallada(camion["id"], camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
+                            pts, _ = obtener_ruta_detallada(vid, camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
                             camion["ruta_puntos"] = pts
-                            
+
                         camion["distancia_total_ruta"] = datos_ia.get("distancia_restante_km", 0.1)
                         camion["indice_ruta"] = 0
                         camion["km_inicio_viaje"] = camion["km"]
-                        
-                        # ¡VITAL! Apagamos la bandera para que no reinicie el viaje infinitamente
-                        db.collection(u'telemetria_flota').document(camion["id"]).update({"nueva_orden": False})
-                    
-                    # 3. CASO: Estaba frenado y le dieron a "CONTINUAR VIAJE" (sin nueva ruta)
+                        db.collection(u'telemetria_flota').document(vid).update({"nueva_orden": False})
+
                     elif camion.get("finalizado"):
-                        print(f"▶️ {camion['id']}: Reanudando viaje hacia {camion['destino']['nombre']}.")
+                        print(f"▶️ {vid}: Reanudando viaje hacia {camion['destino']['nombre']}.")
                         camion["finalizado"] = False
-                        
-                        pts, dist = obtener_ruta_detallada(camion["id"], camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
+                        pts, dist = obtener_ruta_detallada(vid, camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
                         camion["ruta_puntos"] = pts
                         camion["distancia_total_ruta"] = max(dist, 0.1)
                         camion["indice_ruta"] = 0
 
             except Exception as e:
                 pass
-            # =================================================================
 
-            # =================================================================
-            # 2. AHORA SÍ, SI SIGUE FINALIZADO, LO SALTAMOS
-            # =================================================================
-            if camion.get("finalizado"): 
+            if camion.get("finalizado"):
                 continue
-                
+
             camiones_en_ruta += 1
 
             # --- 1. INICIO DE RUTA NORMAL ---
             if not camion["ruta_puntos"]:
-                puntos, dist_total = obtener_ruta_detallada(camion["id"], camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
-                if dist_total == 0: dist_total = 0.1 
+                puntos, dist_total = obtener_ruta_detallada(vid, camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
+                if dist_total == 0:
+                    dist_total = 0.1
                 camion["ruta_puntos"] = puntos
                 camion["distancia_total_ruta"] = dist_total
                 camion["km_inicio_viaje"] = camion["km"]
@@ -187,34 +317,38 @@ def actualizar_flota():
                     "lat_inicial": camion["lat"],
                     "lng_inicial": camion["lng"]
                 }
-                print(f"📍 {camion['id']}: iniciando ruta OSRM de {round(dist_total, 2)}km ({len(puntos)} pts)")
+                print(f"📍 {vid}: iniciando ruta OSRM de {round(dist_total, 2)}km ({len(puntos)} pts)")
 
-            # --- 2. CÁLCULO DE MOVIMIENTO REALISTA ---
+            # --- 2. CÁLCULO DE MOVIMIENTO ---
             distancia_paso = (VELOCIDAD_CRUCERO_KMH / 3600) * INTERVALO_SIMULACION_SEG
-            
+
             if camion["indice_ruta"] < len(camion["ruta_puntos"]):
                 salto = int((len(camion["ruta_puntos"]) / max(0.1, camion["distancia_total_ruta"])) * distancia_paso)
                 camion["indice_ruta"] += max(1, salto)
-                
+
                 if camion["indice_ruta"] < len(camion["ruta_puntos"]):
                     punto = camion["ruta_puntos"][camion["indice_ruta"]]
                     camion["lng"], camion["lat"] = punto[0], punto[1]
                     camion["km"] += distancia_paso
-                    print(f"🚛 {camion['id']}: indic={camion['indice_ruta']}/{len(camion['ruta_puntos'])} km={camion['km']:.1f} pos=({camion['lat']:.4f},{camion['lng']:.4f})")
+
+                    # ACTUALIZAR COMPONENTES: sumar kilometraje a cada pieza
+                    actualizar_componentes_kilometraje(vid, distancia_paso)
+
+                    print(f"🚛 {vid}: indic={camion['indice_ruta']}/{len(camion['ruta_puntos'])} km={camion['km']:.1f} pos=({camion['lat']:.4f},{camion['lng']:.4f})")
             else:
-                print(f"🏁 {camion['id']}: FINALIZADO (indice_ruta={camion['indice_ruta']} >= total={len(camion['ruta_puntos'])})")
+                print(f"🏁 {vid}: FINALIZADO")
                 registrar_viaje_finalizado(camion)
                 camion["finalizado"] = True
 
-                # ¡CORRECCIÓN 2! Cierre automático en Firebase
                 try:
-                    db.collection(u'telemetria_flota').document(camion["id"]).update({
+                    db.collection(u'telemetria_flota').document(vid).update({
                         "viaje_activo": False,
                         "mision": "Esperando orden",
                         "puntos_ruta": []
                     })
-                    db.collection(u'vehiculos').document(camion["id"]).update({
-                        "estado": "Disponible"
+                    db.collection(u'vehiculos').document(vid).update({
+                        "estado": "Disponible",
+                        "kilometraje_actual": round(camion["km"], 2)
                     })
                 except Exception as e:
                     print(f"Error actualizando Firebase al finalizar viaje: {e}")
@@ -225,28 +359,28 @@ def actualizar_flota():
             factor_edad = 1.15 if camion["edad"] > 60 else 1.0
             consumo_real = distancia_paso * CONSUMO_PROMEDIO_L_KM * factor_edad
             consumo_enviado = consumo_real
-            
-            if camion["id"] == "CAMION-003" and random.random() < 0.10:
+
+            if vid == "CAMION-003" and random.random() < 0.10:
                 consumo_enviado = consumo_real * 15
-                camion["incidentes_conteo"] += 1
-                registrar_incidente(camion["id"], camion["id_conductor"], "Anomalía de Combustible", f"Consumo irregular detectado: {round(consumo_enviado, 2)}L en 10s.", camion["lat"], camion["lng"])
+                camion["incidentes_conteo"] = camion.get("incidentes_conteo", 0) + 1
+                registrar_incidente(vid, camion["id_conductor"], "Anomalía de Combustible", f"Consumo irregular detectado: {round(consumo_enviado, 2)}L en 10s.", camion["lat"], camion["lng"])
 
             camion["combustible"] -= consumo_enviado
             if camion["combustible"] <= 20:
-                print(f"⛽ {camion['id']}: tanque vacío ({round(camion['combustible'],1)}L) → rellenado a {camion['capacidad_tanque_L']}L")
+                print(f"⛽ {vid}: tanque vacío ({round(camion['combustible'],1)}L) → rellenado a {camion['capacidad_tanque_L']}L")
                 camion["combustible"] = camion["capacidad_tanque_L"]
 
-            # --- 4. SENSORES DE MOTOR PARA LA IA ---
-            if camion["id"] == "CAMION-002":
+            # --- 4. SENSORES DE MOTOR ---
+            if vid == "CAMION-002":
                 horas = round(random.uniform(10.0, 14.0), 1)
                 temp = round(random.uniform(105.0, 115.0), 1)
             else:
                 horas = round(random.uniform(1.0, 6.0), 1)
                 temp = round(random.uniform(80.0, 95.0), 1)
 
-            # --- 5. ENVÍO DE TELEMETRÍA A FIREBASE ---
+            # --- 5. ENVÍO DE TELEMETRÍA ---
             try:
-                dist_restante = max(0.0, camion["distancia_total_ruta"] - (camion["indice_ruta"] * (camion["distancia_total_ruta"]/max(1, len(camion["ruta_puntos"])))))
+                dist_restante = max(0.0, camion["distancia_total_ruta"] - (camion["indice_ruta"] * (camion["distancia_total_ruta"] / max(1, len(camion["ruta_puntos"])))))
                 porcentaje_combustible = (camion["combustible"] / camion["capacidad_tanque_L"]) * 100
 
                 hay_falla_mecanica = (temp >= 102 or horas >= 10)
@@ -260,37 +394,42 @@ def actualizar_flota():
                     for i in range(0, len(pts), paso)
                 ] if pts else []
 
-                db.collection(u'telemetria_flota').document(camion["id"]).set({
-                    "id_camion": camion["id"],
-                    "conductor_asignado": CONDUCTORES[camion["id_conductor"]],
+                conductor_info = {"nombre": obtener_conductor_nombre(camion["id_conductor"]), "id_conductor": camion["id_conductor"]}
+
+                db.collection(u'telemetria_flota').document(vid).set({
+                    "id_camion": vid,
+                    "conductor_asignado": conductor_info,
                     "ubicacion": {"lat": camion["lat"], "lng": camion["lng"]},
                     "kilometraje": round(camion["km"], 2),
                     "combustible_actual_L": round(camion["combustible"], 2),
                     "capacidad_tanque_L": camion["capacidad_tanque_L"],
                     "nivel_combustible_pct": round(porcentaje_combustible, 2),
-                    "estado_motor": estado_final, 
+                    "estado_motor": estado_final,
                     "edad_motor_meses": camion["edad"],
                     "horas_conduccion": horas,
                     "temperatura_motor": temp,
                     "consumo_instante": round(consumo_enviado, 2),
                     "destino": camion["destino"],
-                    "mision": f"Ruta a {camion['destino']['nombre']}" if camion.get("viaje_activo", True) else "Esperando orden",
+                    "mision": f"Ruta a {camion['destino']['nombre']}" if not camion.get("finalizado", True) else "Esperando orden",
                     "distancia_restante_km": round(dist_restante, 2),
                     "ultima_actualizacion": datetime.now(),
                     "viaje_activo": not camion.get("finalizado", False),
                     "km_inicio_viaje": camion.get("km_inicio_viaje", camion["km"]),
                     "puntos_ruta": puntos_ruta_firestore
                 }, merge=True)
-                print(f"📡 {camion['id']}: telemetria enviada (ruta={len(puntos_ruta_firestore)}pts)")
+                print(f"📡 {vid}: telemetria enviada (ruta={len(puntos_ruta_firestore)}pts)")
             except Exception as e:
-                print(f"❌ Error en Firebase [{camion['id']}]: {e}")
+                print(f"❌ Error en Firebase [{vid}]: {e}")
 
         if camiones_en_ruta > 0:
-            print(f"✅ [TICK {tick}] [{datetime.now().strftime('%H:%M:%S')}] {camiones_en_ruta} camiones en movimiento...")
+            nuevo_count = len(camiones_dinamicos)
+            extra = f" (+{nuevo_count} dinámicos)" if nuevo_count > 0 else ""
+            print(f"✅ [TICK {tick}] [{datetime.now().strftime('%H:%M:%S')}] {camiones_en_ruta} camiones en movimiento{extra}...")
         else:
             print(f"🌟 [TICK {tick}] [{datetime.now().strftime('%H:%M:%S')}] Toda la flota ha llegado a su destino. Simulador en pausa.")
-            
+
         time.sleep(INTERVALO_SIMULACION_SEG)
+
 
 if __name__ == "__main__":
     actualizar_flota()

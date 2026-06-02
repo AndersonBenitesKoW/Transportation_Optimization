@@ -9,6 +9,7 @@ import { UnidadesComponent } from './modulos/admin/unidades/unidades';
 import { ConductoresComponent } from './modulos/admin/conductores/conductores';
 import { AlertasComponent } from './modulos/admin/alertas/alertas';
 import { ViajesComponent } from './modulos/admin/viajes/viajes';
+import { UsuariosComponent } from './modulos/admin/usuarios/usuarios';
 import { ConductorComponent } from './layouts/conductor/conductor';
 import { adminGuard, conductorGuard } from './guards/auth.guard';
 
@@ -33,7 +34,8 @@ export const routes: Routes = [
       { path: 'unidades', component: UnidadesComponent },
       { path: 'conductores', component: ConductoresComponent },
       { path: 'alertas', component: AlertasComponent },
-      { path: 'viajes', component: ViajesComponent }
+      { path: 'viajes', component: ViajesComponent },
+      { path: 'usuarios', component: UsuariosComponent }
     ]
   },
   { 

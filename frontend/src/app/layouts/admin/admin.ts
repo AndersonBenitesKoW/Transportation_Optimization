@@ -28,6 +28,7 @@ export class AdminLayout implements OnInit {
   chevronLeft = 'chevron-left';
   chevronRight = 'chevron-right';
   menu = 'menu';
+  shield = 'shield';
 
   usuarioActual: any = null;
   sidebarColapsado = false;

@@ -128,7 +128,7 @@
               <label class="form-label">Conductor *</label>
               <select class="form-input" [(ngModel)]="form.conductor_asignado">
                 <option value="">Seleccionar conductor</option>
-                <option *ngFor="let c of conductores" [value]="c.id_conductor">{{ c.nombre }}</option>
+                <option *ngFor="let c of conductoresDisponibles" [value]="c.id_conductor">{{ c.nombre }}</option>
               </select>
             </div>
           </div>

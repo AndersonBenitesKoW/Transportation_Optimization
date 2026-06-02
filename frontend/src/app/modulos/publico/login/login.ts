@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { ThemeService } from '../../../services/theme.service';
+import { ApiService } from '../../../services/api.service';
 import { IconComponent } from '../../../components/icon.component';
 
 @Component({
@@ -21,6 +22,7 @@ export class LoginComponent implements OnInit {
   truck = 'truck';
 
   private authService = inject(AuthService);
+  private apiService = inject(ApiService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
   readonly themeService = inject(ThemeService);
@@ -47,13 +49,20 @@ export class LoginComponent implements OnInit {
     }
     
     // NUEVA LÓGICA DE LOGIN PARA CONDUCTORES
-    if (this.credenciales.email.startsWith('c00') && this.credenciales.password === '1234') { 
-      // Extraemos los últimos 3 números del email (ej: "c003" -> "003")
+    if (this.credenciales.email.startsWith('c') && this.credenciales.password === '1234') { 
       const numCamion = this.credenciales.email.substring(1); 
-      // Llamamos al servicio indicando exactamente qué camión es
-      this.authService.loginDemo('CONDUCTOR', `CAMION-${numCamion}`); 
-      this.cargando = false; 
-      return; 
+      const idCamion = `CAMION-${numCamion}`;
+      this.apiService.getVehiculo(idCamion).subscribe({
+        next: () => {
+          this.authService.loginDemo('CONDUCTOR', idCamion);
+          this.cargando = false;
+        },
+        error: () => {
+          this.errorLogin = `El vehículo ${idCamion} no existe en el sistema`;
+          this.cargando = false;
+        }
+      });
+      return;
     }
 
     this.authService.login(this.credenciales.email, this.credenciales.password).subscribe({

@@ -26,9 +26,14 @@
       <option value="Todos">Todos</option>
       <option *ngFor="let v of vehiculos" [value]="v.id_vehiculo">{{ v.id_vehiculo }} - {{ v.placa }}</option>
     </select>
+    <div class="crud-filter-tabs">
+      <button (click)="tabActiva = 'viajes'" [class.crud-filter-tab--active]="tabActiva === 'viajes'" class="crud-filter-tab">Viajes</button>
+      <button (click)="tabActiva = 'reposicion'" [class.crud-filter-tab--active]="tabActiva === 'reposicion'" class="crud-filter-tab">Reposiciones</button>
+    </div>
   </div>
 
-  <div class="crud-table-wrapper">
+  <!-- TAB: VIAJES -->
+  <div *ngIf="tabActiva === 'viajes'" class="crud-table-wrapper">
     <table class="crud-table">
       <thead>
         <tr>
@@ -67,6 +72,38 @@
     </table>
   </div>
 
+  <!-- TAB: REPOSICIONES / DESPLAZAMIENTOS -->
+  <div *ngIf="tabActiva === 'reposicion'" class="crud-table-wrapper">
+    <table class="crud-table">
+      <thead>
+        <tr>
+          <th>Vehiculo</th>
+          <th>Tipo</th>
+          <th>Desde (Punto A)</th>
+          <th>Hasta (Punto B)</th>
+          <th>Distancia</th>
+          <th>Combustible Est.</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let d of filtradosDesp" class="crud-row">
+          <td class="crud-cell-id">{{ d.id_vehiculo }}</td>
+          <td><span class="badge badge--reposicion">{{ d.tipo }}</span></td>
+          <td>{{ d.origen_nombre }}</td>
+          <td>{{ d.destino_nombre }}</td>
+          <td class="crud-cell-bold">{{ d.distancia_km | number:'1.1-1' }} km</td>
+          <td>{{ d.combustible_estimado_L | number:'1.1-1' }} L</td>
+          <td>{{ d.fecha | date:'short' }}</td>
+        </tr>
+        <tr *ngIf="filtradosDesp.length === 0">
+          <td colspan="7" style="text-align:center;color:var(--text-secondary);padding:32px">No hay reposiciones registradas</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MODAL REGISTRAR VIAJE -->
   <div *ngIf="modalAbierto" class="modal-overlay" (click)="cerrarModal()">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
@@ -76,34 +113,176 @@
       <div class="modal-body">
         <div class="form-group">
           <label class="form-label">Vehiculo *</label>
-          <select class="form-input" [(ngModel)]="form.id_vehiculo" (change)="onVehiculoChange()">
-            <option value="">Seleccionar vehiculo</option>
-            <option *ngFor="let v of vehiculos" [value]="v.id_vehiculo">{{ v.id_vehiculo }} - {{ v.placa }} ({{ v.kilometraje_actual | number:'1.0-0' }} km)</option>
-          </select>
-        </div>
-        
-        <div style="margin-bottom: 15px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <p style="margin: 0 0 5px 0; font-weight: bold; color: #1e293b; font-size: 14px;">Asignación de Ruta</p>
-          <p style="margin: 0 0 10px 0; font-size: 12px; color: #64748b;">El origen se calcula automáticamente. Por favor, selecciona el punto de destino en el mapa.</p>
-          
-          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-            <div style="flex: 1; padding: 8px; background: #cbd5e1; color: #475569; border-radius: 6px; font-weight: bold; text-align: center; font-size: 14px;">
-              📍 Origen Fijado
+          <div class="viaje-autocomplete">
+            <div class="viaje-autocomplete-input-wrap">
+              <lucide-icon [img]="truck" class="w-4 h-4 viaje-autocomplete-icon-vehiculo"></lucide-icon>
+              <input type="text"
+                     class="form-input form-input--with-icon"
+                     [(ngModel)]="busquedaVehiculo"
+                     (input)="onBuscarVehiculo()"
+                     (focus)="onFocusVehiculo()"
+                     (blur)="ocultarDropdownVehiculo()"
+                     [placeholder]="form.id_vehiculo ? vehiculoSeleccionadoText : 'Buscar vehiculo...'"
+                     autocomplete="off" />
+              <button *ngIf="form.id_vehiculo" type="button" class="viaje-autocomplete-clear"
+                      (mousedown)="$event.preventDefault(); limpiarVehiculo()">&times;</button>
             </div>
-            <button (click)="seleccionarModo('destino')" 
-                    [style.background]="modoSeleccion === 'destino' ? '#ef4444' : '#e2e8f0'"
-                    [style.color]="modoSeleccion === 'destino' ? 'white' : '#475569'"
-                    style="flex: 1; padding: 8px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s;">
-              🎯 Clic para cambiar Destino
+            <div *ngIf="mostrandoDropdownVehiculo && vehiculosFiltrados.length > 0" class="viaje-autocomplete-list">
+              <div *ngFor="let v of vehiculosFiltrados"
+                   (mousedown)="seleccionarVehiculo(v)"
+                   class="viaje-autocomplete-item">
+                <div class="viaje-autocomplete-item-main">
+                  <span class="viaje-autocomplete-item-id">{{ v.id_vehiculo }} - {{ v.placa }}</span>
+                  <span class="viaje-autocomplete-item-info">{{ v.marca }} {{ v.modelo }} ({{ v.anio }})</span>
+                </div>
+                <div class="viaje-autocomplete-item-meta">
+                  <span class="viaje-autocomplete-item-km">{{ (v.kilometraje_actual || 0) | number:'1.0-0' }} km</span>
+                  <span class="viaje-autocomplete-item-estado" [style.color]="v.estado === 'Disponible' ? '#16a34a' : '#64748b'">{{ v.estado }}</span>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="mostrandoDropdownVehiculo && busquedaVehiculo && vehiculosFiltrados.length === 0" class="viaje-autocomplete-empty">
+              No se encontraron vehiculos disponibles
+            </div>
+          </div>
+        </div>
+
+        <!-- UBICACION ACTUAL DEL VEHICULO (solo sin telemetria) -->
+        <div *ngIf="form.id_vehiculo && !telemetriaDisponible" class="viaje-ubicacion-section">
+          <div class="viaje-ubicacion-header" (click)="mostrarUbicacionInicial = !mostrarUbicacionInicial">
+            <span class="viaje-ubicacion-toggle">{{ mostrarUbicacionInicial ? '&#9660;' : '&#9654;' }}</span>
+            <span class="viaje-ubicacion-label">&#128205; Ubicacion Actual del Vehiculo</span>
+            <span class="viaje-ubicacion-required">* requerido para primer viaje</span>
+          </div>
+          <div *ngIf="mostrarUbicacionInicial" class="viaje-ubicacion-body">
+            <p class="viaje-ubicacion-desc">
+              Este vehiculo no tiene telemetria aun. Indica su ubicacion actual (Punto A) para poder calcular la reposicion hasta el origen del viaje.
+            </p>
+            <div class="form-group">
+              <label class="form-label">Buscar ubicacion o seleccionar en el mapa</label>
+              <div class="viaje-autocomplete">
+                <input type="text" class="form-input" [(ngModel)]="form.reposicion_origen_nombre"
+                       (keyup.enter)="onBuscarUbicacionInicial()"
+                       placeholder="Ej: Base Central Trujillo" autocomplete="off" />
+              </div>
+            </div>
+            <div class="viaje-ubicacion-botones">
+              <button (click)="onBuscarUbicacionInicial()" class="viaje-ubicacion-btn viaje-ubicacion-btn--search" [disabled]="!form.reposicion_origen_nombre">
+                &#128269; Buscar direccion
+              </button>
+              <button (click)="seleccionarModoUbicacionInicial()"
+                      [class.viaje-ubicacion-btn--active]="modoSeleccion === 'ubicacion_inicial'"
+                      class="viaje-ubicacion-btn viaje-ubicacion-btn--map">
+                &#128205; Fijar en mapa
+              </button>
+            </div>
+            <p *ngIf="modoSeleccion === 'ubicacion_inicial'" class="viaje-mapa-hint">
+              Haz clic en el mapa para colocar la ubicacion actual del vehiculo (Punto A)
+            </p>
+            <div *ngIf="form.reposicion_origen_lat" class="viaje-ubicacion-coords">
+              <span>Punto A: {{ form.reposicion_origen_nombre || 'Ubicacion inicial' }}</span>
+              <span>Lat: {{ form.reposicion_origen_lat | number:'1.4-4' }}, Lng: {{ form.reposicion_origen_lng | number:'1.4-4' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="viaje-ruta-section">
+          <p class="viaje-ruta-title">Asignacion de Ruta</p>
+          <p class="viaje-ruta-desc">Selecciona el Origen y Destino en el mapa. Puedes editar los nombres manualmente.</p>
+
+          <div class="viaje-ruta-inputs">
+            <div class="form-group viaje-input-group">
+              <label class="form-label">Nombre del Origen *</label>
+              <div class="viaje-autocomplete">
+                <input type="text" class="form-input" [(ngModel)]="form.origen_nombre" (input)="onBuscarOrigen()" (focus)="mostrarSugerenciasOrigen = sugerenciasOrigen.length > 0" (blur)="ocultarSugerenciasOrigen()" placeholder="Ej: Almacen Central Lima" autocomplete="off" />
+                <div *ngIf="buscandoOrigen" class="viaje-autocomplete-loading">
+                  <div class="viaje-autocomplete-spinner"></div>
+                </div>
+                <ul *ngIf="mostrarSugerenciasOrigen && sugerenciasOrigen.length > 0" class="viaje-autocomplete-list">
+                  <li *ngFor="let s of sugerenciasOrigen" (mousedown)="seleccionarSugerenciaOrigen(s)">
+                    <span class="viaje-autocomplete-name">{{ s.nombre }}</span>
+                    <span class="viaje-autocomplete-detail">{{ s.nombreCompleto }}</span>
+                  </li>
+                </ul>
+              </div>
+              <span *ngIf="form.origen_lat" class="viaje-coords">Lat: {{ form.origen_lat | number:'1.4-4' }}, Lng: {{ form.origen_lng | number:'1.4-4' }}</span>
+            </div>
+            <div class="form-group viaje-input-group">
+              <label class="form-label">Nombre del Destino *</label>
+              <div class="viaje-autocomplete">
+                <input type="text" class="form-input" [(ngModel)]="form.destino_nombre" (input)="onBuscarDestino()" (focus)="mostrarSugerenciasDestino = sugerenciasDestino.length > 0" (blur)="ocultarSugerenciasDestino()" placeholder="Ej: Planta Industrial Arequipa" autocomplete="off" />
+                <div *ngIf="buscandoDestino" class="viaje-autocomplete-loading">
+                  <div class="viaje-autocomplete-spinner"></div>
+                </div>
+                <ul *ngIf="mostrarSugerenciasDestino && sugerenciasDestino.length > 0" class="viaje-autocomplete-list">
+                  <li *ngFor="let s of sugerenciasDestino" (mousedown)="seleccionarSugerenciaDestino(s)">
+                    <span class="viaje-autocomplete-name">{{ s.nombre }}</span>
+                    <span class="viaje-autocomplete-detail">{{ s.nombreCompleto }}</span>
+                  </li>
+                </ul>
+              </div>
+              <span *ngIf="form.destino_lat" class="viaje-coords">Lat: {{ form.destino_lat | number:'1.4-4' }}, Lng: {{ form.destino_lng | number:'1.4-4' }}</span>
+            </div>
+          </div>
+
+          <!-- SECCION REPOSICION -->
+          <div *ngIf="ubicacionCamion && form.reposicion_origen_lat" class="viaje-reposicion-section">
+            <div class="viaje-reposicion-header" (click)="mostrarReposicion = !mostrarReposicion">
+              <span class="viaje-reposicion-toggle">{{ mostrarReposicion ? '&#9660;' : '&#9654;' }}</span>
+              <span class="viaje-reposicion-label">Reposicion (Punto A &#8594; Punto B)</span>
+              <span *ngIf="form.reposicion_distancia_km > 0" class="viaje-reposicion-badge">{{ form.reposicion_distancia_km }} km</span>
+            </div>
+            <div *ngIf="mostrarReposicion" class="viaje-reposicion-body">
+              <p class="viaje-reposicion-desc">
+                Distancia desde la ubicacion actual del camion (Punto A) hasta el inicio del viaje (Punto B). Esta distancia se registra por separado del viaje principal (B &#8594; C).
+              </p>
+              <div class="viaje-reposicion-info">
+                <div class="viaje-reposicion-point">
+                  <span class="viaje-reposicion-point-label">A (Ubicacion actual)</span>
+                  <span class="viaje-reposicion-point-name">{{ form.reposicion_origen_nombre }}</span>
+                  <span class="viaje-reposicion-point-coords">Lat: {{ form.reposicion_origen_lat | number:'1.4-4' }}, Lng: {{ form.reposicion_origen_lng | number:'1.4-4' }}</span>
+                </div>
+                <div class="viaje-reposicion-arrow">&#8594;</div>
+                <div class="viaje-reposicion-point">
+                  <span class="viaje-reposicion-point-label">B (Inicio del viaje)</span>
+                  <span class="viaje-reposicion-point-name">{{ form.origen_nombre }}</span>
+                  <span *ngIf="form.origen_lat" class="viaje-reposicion-point-coords">Lat: {{ form.origen_lat | number:'1.4-4' }}, Lng: {{ form.origen_lng | number:'1.4-4' }}</span>
+                </div>
+              </div>
+              <button (click)="calcularReposicion()" [disabled]="calculandoReposicion || !form.origen_lat" class="viaje-reposicion-btn">
+                {{ calculandoReposicion ? 'Calculando...' : 'Calcular Distancia OSRM' }}
+              </button>
+              <div *ngIf="form.reposicion_distancia_km > 0" class="form-row" style="margin-top:8px">
+                <div class="form-group">
+                  <label class="form-label">Distancia Reposicion (km)</label>
+                  <input type="number" class="form-input" [(ngModel)]="form.reposicion_distancia_km" min="0" step="0.1" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Combustible Estimado (L)</label>
+                  <input type="number" class="form-input" [(ngModel)]="form.reposicion_combustible_L" min="0" step="0.1" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="viaje-mapa-botones">
+            <button (click)="seleccionarModo('origen')"
+                    [class.viaje-mapa-btn--active]="modoSeleccion === 'origen'"
+                    class="viaje-mapa-btn viaje-mapa-btn--origen">
+              <span class="viaje-mapa-btn-icon">&#128205;</span> Seleccionar Origen en Mapa
+            </button>
+            <button (click)="seleccionarModo('destino')"
+                    [class.viaje-mapa-btn--active]="modoSeleccion === 'destino'"
+                    class="viaje-mapa-btn viaje-mapa-btn--destino">
+              <span class="viaje-mapa-btn-icon">&#127919;</span> Seleccionar Destino en Mapa
             </button>
           </div>
-          
-          <div id="mapa-modal-viaje" style="height: 250px; border-radius: 8px; border: 2px solid #cbd5e1; cursor: crosshair;"></div>
-          
-          <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px; font-size: 12px; color: #64748b; background: white; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0;">
-            <span><strong>Punto de Partida:</strong> {{ form.origen_nombre }} ({{ form.origen_lat }}, {{ form.origen_lng }})</span>
-            <span><strong>Punto de Destino:</strong> {{ form.destino_lat ? form.destino_nombre + ' (' + form.destino_lat + ', ' + form.destino_lng + ')' : 'Por seleccionar' }}</span>
-          </div>
+
+          <p *ngIf="modoSeleccion" class="viaje-mapa-hint">
+            Haz clic en el mapa para colocar el {{ modoSeleccion === 'origen' ? 'Origen (punto naranja)' : modoSeleccion === 'destino' ? 'Destino (punto rojo)' : 'Punto P (ubicacion inicial)' }}
+          </p>
+
+          <div id="mapa-modal-viaje" class="viaje-mapa"></div>
         </div>
 
         <div class="form-row">
@@ -116,7 +295,7 @@
             <input type="number" class="form-input" [(ngModel)]="form.km_fin" min="0" />
           </div>
         </div>
-        
+
         <div *ngIf="form.km_fin > 0" class="viaje-resumen">
           <p class="tab-section-title">Resumen del Viaje</p>
           <div class="form-row">
@@ -131,7 +310,7 @@
           </div>
         </div>
       </div>
-      
+
       <div class="modal-footer">
         <button (click)="cerrarModal()" class="btn btn--ghost" [disabled]="cargando">Cancelar</button>
         <button (click)="guardar()" class="btn btn--primary" [disabled]="cargando">{{ cargando ? 'Guardando...' : (form.km_fin > 0 ? 'Registrar Viaje Completo' : 'Iniciar Viaje') }}</button>

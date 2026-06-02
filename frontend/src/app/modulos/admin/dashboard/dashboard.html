@@ -21,7 +21,7 @@
       <div class="dashboard-kpis">
         <div class="dashboard-kpi dashboard-kpi--orange">
           <p class="dashboard-kpi-label">Camiones</p>
-          <p class="dashboard-kpi-value">{{ flota.length }}</p>
+          <p class="dashboard-kpi-value">{{ vehiculosCombinados.length }}</p>
         </div>
         <div class="dashboard-kpi dashboard-kpi--red">
           <p class="dashboard-kpi-label">Riesgo IA</p>
@@ -49,8 +49,39 @@
         <p class="dashboard-incident-desc">{{ inc.descripcion }}</p>
         <small class="dashboard-incident-time">{{ inc.fecha_hora | date:'shortTime' }} - Trujillo, PE</small>
       </div>
-      <div *ngIf="incidentes.length === 0" class="dashboard-incidents-empty">
+      <div *ngIf="incidentes.length === 0 && alertasMantenimiento.length === 0" class="dashboard-incidents-empty">
         Sin alertas en las ultimas horas.
+      </div>
+    </div>
+  </div>
+
+  <div *ngIf="alertasMantenimiento.length > 0" class="dashboard-mantenimiento">
+    <h2 class="dashboard-section-title">
+      <lucide-icon [img]="wrench" class="w-5 h-5"></lucide-icon>
+      Alertas de Mantenimiento Preventivo
+    </h2>
+    <div class="mantenimiento-grid">
+      <div *ngFor="let alerta of alertasMantenimiento" class="mantenimiento-card"
+           [class.mantenimiento-card--critico]="alerta.gravedad === 'critico'"
+           [class.mantenimiento-card--advertencia]="alerta.gravedad === 'advertencia'">
+        <div class="mantenimiento-card-header">
+          <span class="mantenimiento-card-id">{{ alerta.id_vehiculo }}</span>
+          <span class="mantenimiento-card-badge"
+                [class.mantenimiento-card-badge--critico]="alerta.gravedad === 'critico'"
+                [class.mantenimiento-card-badge--advertencia]="alerta.gravedad === 'advertencia'">
+            {{ alerta.gravedad === 'critico' ? 'CAMBIO REQUERIDO' : 'PROXIMO MANTENIMIENTO' }}
+          </span>
+        </div>
+        <div class="mantenimiento-card-body">
+          <p class="mantenimiento-card-componente">{{ alerta.componente }}</p>
+          <div class="mantenimiento-card-bar-track">
+            <div class="mantenimiento-card-bar-fill"
+                 [style.width.%]="min(alerta.porcentaje_desgaste, 100)"
+                 [style.backgroundColor]="alerta.porcentaje_desgaste >= 100 ? 'var(--color-danger)' : 'var(--color-warning)'"></div>
+          </div>
+          <p class="mantenimiento-card-detail">{{ alerta.kilometraje_acumulado | number:'1.0-0' }} / {{ alerta.tiempo_vida_km | number:'1.0-0' }} km ({{ alerta.porcentaje_desgaste }}%)</p>
+        </div>
+        <p class="mantenimiento-card-msg">{{ alerta.mensaje }}</p>
       </div>
     </div>
   </div>
@@ -64,64 +95,103 @@
       <div *ngFor="let _ of [1,2,3,4,5]" class="skeleton dashboard-fleet-skeleton"></div>
     </ng-container>
 
-    <div *ngFor="let camion of flota; trackBy: trackById" class="camion-card animate-in">
-      <div class="camion-card-header">
-        <h2 class="camion-card-id">
-          <lucide-icon [img]="truck" class="w-4 h-4"></lucide-icon>
-          {{ camion.id_camion }}
-        </h2>
-        <div style="display:flex;gap:6px;align-items:center">
-          <span *ngIf="camion.viaje_activo" class="camion-card-mision" style="background:rgba(34,197,94,0.12);color:#16a34a">VIAJE ACTIVO</span>
-          <span class="camion-card-mision">{{ camion.mision }}</span>
+    <ng-container *ngFor="let camion of vehiculosCombinados; trackBy: trackById">
+      <!-- TARJETA CON TELEMETRIA (original) -->
+      <div *ngIf="!camion.sinTelemetria" class="camion-card animate-in">
+        <div class="camion-card-header">
+          <h2 class="camion-card-id">
+            <lucide-icon [img]="truck" class="w-4 h-4"></lucide-icon>
+            {{ camion.id_camion }}
+          </h2>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span *ngIf="camion.viaje_activo" class="camion-card-mision" style="background:rgba(34,197,94,0.12);color:#16a34a">VIAJE ACTIVO</span>
+            <span class="camion-card-mision">{{ camion.mision }}</span>
+          </div>
         </div>
+
+        <div *ngIf="camion.conductor_asignado" class="camion-card-driver">
+          <div class="camion-card-avatar">{{ camion.conductor_asignado.nombre?.charAt(0) || '?' }}</div>
+          <div>
+            <p class="camion-card-driver-name">{{ camion.conductor_asignado.nombre }}</p>
+            <p class="camion-card-driver-phone">Tel: {{ camion.conductor_asignado.telefono }}</p>
+          </div>
+        </div>
+
+        <div class="camion-card-ia"
+             [class.camion-card-ia--safe]="!camion.peligro_mecanico"
+             [class.camion-card-ia--danger]="camion.peligro_mecanico">
+          IA: {{ camion.peligro_mecanico ? 'PELIGRO DE FALLA' : 'OPERACION SEGURA' }}
+          <span *ngIf="camion.peligro_mecanico" class="camion-card-pulse"></span>
+        </div>
+
+        <div class="camion-card-metrics">
+          <div class="camion-card-metric">
+            <strong>Km:</strong> {{ camion.kilometraje | number:'1.1-1' }}
+          </div>
+          <div class="camion-card-metric">
+            <strong>Temp:</strong> {{ camion.temperatura_motor }}&deg;C
+          </div>
+        </div>
+
+        <div class="camion-card-fuel">
+          <div class="camion-card-fuel-header">
+            <strong>Tanque Real:</strong>
+            <span class="camion-card-fuel-value"
+                  [style.color]="camion.nivel_combustible_pct! <= 15 ? 'var(--color-danger)' : camion.nivel_combustible_pct! <= 40 ? 'var(--color-warning)' : 'var(--color-orange-500)'">
+              {{ camion.combustible_actual_L | number:'1.0-0' }}L / {{ camion.capacidad_tanque_L }}L
+            </span>
+          </div>
+          <div class="camion-card-fuel-track">
+            <div class="camion-card-fuel-fill"
+                 [style.width.%]="camion.nivel_combustible_pct"
+                 [style.backgroundColor]="camion.nivel_combustible_pct! <= 15 ? 'var(--color-danger)' : camion.nivel_combustible_pct! <= 40 ? 'var(--color-warning)' : 'var(--color-orange-500)'"></div>
+          </div>
+        </div>
+
+        <div *ngIf="camion.anomalia_combustible" class="camion-card-anomaly">
+          IA: ANOMALIA DE COMBUSTIBLE DETECTADA
+        </div>
+
+        <p class="camion-card-update">
+          Act: {{ camion.ultima_actualizacion | date:'shortTime' }}
+        </p>
       </div>
 
-      <div *ngIf="camion.conductor_asignado" class="camion-card-driver">
-        <div class="camion-card-avatar">U</div>
-        <div>
-          <p class="camion-card-driver-name">{{ camion.conductor_asignado.nombre }}</p>
-          <p class="camion-card-driver-phone">Tel: {{ camion.conductor_asignado.telefono }}</p>
+      <!-- TARJETA SIN TELEMETRIA (datos del CRUD) -->
+      <div *ngIf="camion.sinTelemetria" class="camion-card camion-card--offline animate-in">
+        <div class="camion-card-header">
+          <h2 class="camion-card-id">
+            <lucide-icon [img]="truck" class="w-4 h-4"></lucide-icon>
+            {{ camion.id_camion }}
+          </h2>
+          <span class="camion-card-badge-offline">SIN TELEMETRIA</span>
+        </div>
+
+        <div class="camion-card-info-row">
+          <span>Placa</span><span>{{ camion.placa }}</span>
+        </div>
+        <div class="camion-card-info-row">
+          <span>Marca / Modelo</span><span>{{ camion.marca }} {{ camion.modelo }} ({{ camion.anio }})</span>
+        </div>
+        <div class="camion-card-info-row">
+          <span>Estado</span>
+          <span class="camion-card-badge-estado"
+                [class.camion-card-badge-estado--disponible]="camion.estado === 'Disponible'"
+                [class.camion-card-badge-estado--ruta]="camion.estado === 'En ruta'"
+                [class.camion-card-badge-estado--taller]="camion.estado === 'Taller'"
+                [class.camion-card-badge-estado--inactivo]="camion.estado === 'Inactivo'">{{ camion.estado }}</span>
+        </div>
+        <div class="camion-card-info-row">
+          <span>Kilometraje</span><span>{{ camion.kilometraje_actual | number:'1.0-0' }} km</span>
+        </div>
+        <div *ngIf="camion.conductor_asignado_nombre" class="camion-card-info-row">
+          <span>Conductor</span><span>{{ camion.conductor_asignado_nombre }}</span>
+        </div>
+
+        <div class="camion-card-ia camion-card-ia--offline">
+          Sin conexion al simulador
         </div>
       </div>
-
-      <div class="camion-card-ia"
-           [class.camion-card-ia--safe]="!camion.peligro_mecanico"
-           [class.camion-card-ia--danger]="camion.peligro_mecanico">
-        IA: {{ camion.peligro_mecanico ? 'PELIGRO DE FALLA' : 'OPERACION SEGURA' }}
-        <span *ngIf="camion.peligro_mecanico" class="camion-card-pulse"></span>
-      </div>
-
-      <div class="camion-card-metrics">
-        <div class="camion-card-metric">
-          <strong>Km:</strong> {{ camion.kilometraje | number:'1.1-1' }}
-        </div>
-        <div class="camion-card-metric">
-          <strong>Temp:</strong> {{ camion.temperatura_motor }}&deg;C
-        </div>
-      </div>
-
-      <div class="camion-card-fuel">
-        <div class="camion-card-fuel-header">
-          <strong>Tanque Real:</strong>
-          <span class="camion-card-fuel-value"
-                [style.color]="camion.nivel_combustible_pct <= 15 ? 'var(--color-danger)' : camion.nivel_combustible_pct <= 40 ? 'var(--color-warning)' : 'var(--color-orange-500)'">
-            {{ camion.combustible_actual_L | number:'1.0-0' }}L / {{ camion.capacidad_tanque_L }}L
-          </span>
-        </div>
-        <div class="camion-card-fuel-track">
-          <div class="camion-card-fuel-fill"
-               [style.width.%]="camion.nivel_combustible_pct"
-               [style.backgroundColor]="camion.nivel_combustible_pct <= 15 ? 'var(--color-danger)' : camion.nivel_combustible_pct <= 40 ? 'var(--color-warning)' : 'var(--color-orange-500)'"></div>
-        </div>
-      </div>
-
-      <div *ngIf="camion.anomalia_combustible" class="camion-card-anomaly">
-        IA: ANOMALIA DE COMBUSTIBLE DETECTADA
-      </div>
-
-      <p class="camion-card-update">
-        Act: {{ camion.ultima_actualizacion | date:'shortTime' }}
-      </p>
-    </div>
+    </ng-container>
   </div>
 </div>

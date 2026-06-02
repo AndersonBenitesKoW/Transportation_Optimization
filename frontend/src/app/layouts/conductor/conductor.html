@@ -8,8 +8,8 @@
           {{ usuarioActual?.ref || 'Cargando...' }}
         </h2>
         <p class="conductor-status">
-          <span class="conductor-status-dot"></span>
-          En Ruta
+          <span class="conductor-status-dot" [style.backgroundColor]="sinTelemetria ? '#94a3b8' : '#22C55E'"></span>
+          {{ sinTelemetria ? 'Sin telemetria' : 'En Ruta' }}
         </p>
       </div>
     </div>
@@ -25,6 +25,33 @@
       </button>
     </div>
   </header>
+
+  <!-- ALERTAS DE MANTENIMIENTO -->
+  <div *ngIf="alertasMantenimiento.length > 0" class="conductor-alertas-mant">
+    <h3 class="conductor-alertas-mant-title">
+      <lucide-icon [img]="alertTriangle" class="w-4 h-4"></lucide-icon>
+      Alertas de Mantenimiento
+    </h3>
+    <div *ngFor="let alerta of alertasMantenimiento" class="conductor-alerta-mant"
+         [class.conductor-alerta-mant--critico]="alerta.gravedad === 'critico'"
+         [class.conductor-alerta-mant--advertencia]="alerta.gravedad === 'advertencia'">
+      <div class="conductor-alerta-mant-header">
+        <span class="conductor-alerta-mant-comp">{{ alerta.componente }}</span>
+        <span class="conductor-alerta-mant-badge"
+              [class.conductor-alerta-mant-badge--critico]="alerta.gravedad === 'critico'"
+              [class.conductor-alerta-mant-badge--advertencia]="alerta.gravedad === 'advertencia'">
+          {{ alerta.gravedad === 'critico' ? 'CAMBIO REQUERIDO' : 'PROXIMO MANTENIMIENTO' }}
+        </span>
+      </div>
+      <div class="conductor-alerta-mant-bar-track">
+        <div class="conductor-alerta-mant-bar-fill"
+             [style.width.%]="min(alerta.porcentaje_desgaste, 100)"
+             [style.backgroundColor]="alerta.porcentaje_desgaste >= 100 ? '#EF4444' : '#F59E0B'"></div>
+      </div>
+      <p class="conductor-alerta-mant-detail">{{ alerta.kilometraje_acumulado | number:'1.0-0' }} / {{ alerta.tiempo_vida_km | number:'1.0-0' }} km ({{ alerta.porcentaje_desgaste }}%)</p>
+      <p class="conductor-alerta-mant-msg">{{ alerta.mensaje }}</p>
+    </div>
+  </div>
 
   <main class="conductor-main">
     <ng-container *ngIf="!miCamion; else contenido">
@@ -46,6 +73,22 @@
         </h3>
 
         <div class="conductor-cards">
+          <div *ngIf="origenNombre" class="conductor-card conductor-card--origen">
+            <div class="conductor-card-accent conductor-card-accent--orange"></div>
+            <div class="conductor-card-body">
+              <div class="conductor-card-icon conductor-card-icon--orange">
+                <lucide-icon [img]="mapPin" class="w-5 h-5"></lucide-icon>
+              </div>
+              <div>
+                <p class="conductor-card-label">Origen del Viaje</p>
+                <p class="conductor-card-value">{{ origenNombre }}</p>
+                <p class="conductor-card-distance" *ngIf="distanciaTotalKm > 0">
+                  Ruta total {{ distanciaTotalKm | number:'1.1-1' }} km
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div class="conductor-card conductor-card--destino">
             <div class="conductor-card-accent conductor-card-accent--orange"></div>
             <div class="conductor-card-body">
@@ -58,6 +101,7 @@
                 <p class="conductor-card-distance">
                   Faltan {{ miCamion.distancia_restante_km | number:'1.1-1' }} km
                 </p>
+                <p *ngIf="sinTelemetria" class="conductor-card-offline-badge">SIN TELEMETRIA</p>
               </div>
             </div>
           </div>
@@ -100,8 +144,8 @@
         <div *ngIf="!miCamion.viaje_activo && !mostrandoFormViaje" class="conductor-card conductor-card--viaje">
           <div class="conductor-card-body" style="padding:16px; justify-content:center">
             <button (click)="iniciarViajeConductor()" class="conductor-btn conductor-btn--primary"
-                    style="width:100%">
-              Iniciar Viaje
+                    style="width:100%" [disabled]="sinTelemetria">
+              {{ sinTelemetria ? 'Sin telemetria - espere al simulador' : 'Iniciar Viaje' }}
             </button>
           </div>
         </div>

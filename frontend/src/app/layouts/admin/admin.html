@@ -32,6 +32,12 @@
         <lucide-icon [img]="users" class="w-5 h-5"></lucide-icon>
         <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Conductores</span>
       </a>
+      <a routerLink="/admin/usuarios"
+         routerLinkActive="admin-sidebar-link--active"
+         class="admin-sidebar-link">
+        <lucide-icon [img]="shield" class="w-5 h-5"></lucide-icon>
+        <span [class.admin-sidebar-label--hidden]="sidebarColapsado" class="admin-sidebar-label">Usuarios</span>
+      </a>
       <a routerLink="/admin/alertas"
          routerLinkActive="admin-sidebar-link--active"
          class="admin-sidebar-link">

@@ -472,3 +472,196 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
   50% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
 }
+
+/* OFFLINE CARD */
+.camion-card--offline {
+  border-color: #94a3b8;
+  background: linear-gradient(135deg, var(--card-bg) 0%, rgba(148, 163, 184, 0.06) 100%);
+  opacity: 0.92;
+}
+
+.camion-card--offline:hover {
+  opacity: 1;
+  border-color: #94a3b8;
+}
+
+.camion-card--offline .camion-card-id {
+  color: #64748b;
+}
+
+.camion-card-badge-offline {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: rgba(100, 116, 139, 0.12);
+  color: #64748b;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid rgba(100, 116, 139, 0.25);
+}
+
+.camion-card-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.camion-card-info-row span:last-child {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.camion-card-badge-estado {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+}
+
+.camion-card-badge-estado--disponible {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16a34a;
+}
+
+.camion-card-badge-estado--ruta {
+  background: rgba(255, 107, 0, 0.12);
+  color: var(--color-orange-500);
+}
+
+.camion-card-badge-estado--taller {
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+}
+
+.camion-card-badge-estado--inactivo {
+  background: rgba(100, 116, 139, 0.12);
+  color: #64748b;
+}
+
+.camion-card-ia--offline {
+  background: rgba(100, 116, 139, 0.08);
+  color: #64748b;
+  border-color: #cbd5e1;
+  margin-top: 8px;
+}
+
+/* MANTENIMIENTO PREVENTIVO */
+.dashboard-mantenimiento {
+  margin-bottom: 24px;
+}
+
+.mantenimiento-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .mantenimiento-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1024px) {
+  .mantenimiento-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+.mantenimiento-card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.mantenimiento-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: rgba(255, 107, 0, 0.2);
+}
+
+.mantenimiento-card--critico {
+  border-left: 4px solid var(--color-danger);
+}
+
+.mantenimiento-card--advertencia {
+  border-left: 4px solid var(--color-warning);
+}
+
+.mantenimiento-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.mantenimiento-card-id {
+  font-weight: 800;
+  font-size: 0.875rem;
+  color: var(--color-orange-500);
+  font-family: 'Courier New', Courier, monospace;
+}
+
+.mantenimiento-card-badge {
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 9999px;
+}
+
+.mantenimiento-card-badge--critico {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--color-danger);
+}
+
+.mantenimiento-card-badge--advertencia {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--color-warning);
+}
+
+.mantenimiento-card-body {
+  margin-bottom: 8px;
+}
+
+.mantenimiento-card-componente {
+  font-weight: 700;
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  text-transform: capitalize;
+  margin: 0 0 6px;
+}
+
+.mantenimiento-card-bar-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--border-color);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.mantenimiento-card-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.5s ease;
+}
+
+.mantenimiento-card-detail {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.mantenimiento-card-msg {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}

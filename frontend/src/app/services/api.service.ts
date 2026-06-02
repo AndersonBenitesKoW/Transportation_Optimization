@@ -50,6 +50,33 @@ export interface Viaje {
   tipo_viaje: 'manual' | 'simulador';
 }
 
+export interface Desplazamiento {
+  id?: string;
+  id_vehiculo: string;
+  tipo: string;
+  origen_nombre: string;
+  origen_lat: number;
+  origen_lng: number;
+  destino_nombre: string;
+  destino_lat: number;
+  destino_lng: number;
+  distancia_km: number;
+  combustible_estimado_L?: number;
+  fecha?: string;
+  id_viaje_principal?: string;
+}
+
+export interface Usuario {
+  id?: string;
+  nombre: string;
+  email: string;
+  password?: string;
+  telefono?: string;
+  rol: string;
+  id_conductor?: string;
+  ref?: string;
+}
+
 export interface Conductor {
   id?: string;
   id_conductor: string;
@@ -213,11 +240,57 @@ export class ApiService {
     return this.http.get<ApiResponse<Viaje[]>>(url);
   }
 
-  iniciarViaje(data: { id_vehiculo: string; origen_nombre: string; origen_lat: number; origen_lng: number; destino_nombre: string; destino_lat: number; destino_lng: number; km_inicio: number }): Observable<ApiResponse<any>> {
+  iniciarViaje(data: { id_vehiculo: string; origen_nombre: string; origen_lat: number; origen_lng: number; destino_nombre: string; destino_lat: number; destino_lng: number; km_inicio: number; reposicion_origen_nombre?: string; reposicion_origen_lat?: number; reposicion_origen_lng?: number; reposicion_distancia_km?: number; ubicacion_inicial_lat?: number; ubicacion_inicial_lng?: number; ubicacion_inicial_nombre?: string }): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/api/viajes/iniciar`, data);
   }
 
   finalizarViaje(data: { id_vehiculo: string; km_fin: number }): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/api/viajes/finalizar`, data);
+  }
+
+  // ============================================================================
+  // DESPLAZAMIENTOS (REPOSICION)
+  // ============================================================================
+
+  getDesplazamientos(idVehiculo?: string): Observable<ApiResponse<Desplazamiento[]>> {
+    const url = idVehiculo
+      ? `${this.apiUrl}/api/desplazamientos?id_vehiculo=${idVehiculo}`
+      : `${this.apiUrl}/api/desplazamientos`;
+    return this.http.get<ApiResponse<Desplazamiento[]>>(url);
+  }
+
+  // ============================================================================
+  // MANTENIMIENTO PREVENTIVO (ALERTAS)
+  // ============================================================================
+
+  getMantenimientoAlertas(idVehiculo?: string): Observable<ApiResponse<any[]>> {
+    const url = idVehiculo
+      ? `${this.apiUrl}/api/mantenimiento-alertas?id_vehiculo=${idVehiculo}`
+      : `${this.apiUrl}/api/mantenimiento-alertas`;
+    return this.http.get<ApiResponse<any[]>>(url);
+  }
+
+  // ============================================================================
+  // USUARIOS
+  // ============================================================================
+
+  getUsuarios(): Observable<ApiResponse<Usuario[]>> {
+    return this.http.get<ApiResponse<Usuario[]>>(`${this.apiUrl}/api/usuarios`);
+  }
+
+  updateUsuario(id: string, data: Partial<Usuario>): Observable<ApiResponse<any>> {
+    return this.http.put<ApiResponse<any>>(`${this.apiUrl}/api/usuarios/${id}`, data);
+  }
+
+  deleteUsuario(id: string): Observable<ApiResponse<any>> {
+    return this.http.delete<ApiResponse<any>>(`${this.apiUrl}/api/usuarios/${id}`);
+  }
+
+  register(data: { nombre: string; email: string; password: string; telefono: string; rol: string }): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/api/usuarios/register`, data);
+  }
+
+  login(data: { email: string; password: string }): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/api/usuarios/login`, data);
   }
 }

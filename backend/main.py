@@ -442,6 +442,32 @@ class ViajeIniciar(BaseModel):
     destino_lat: float
     destino_lng: float
     km_inicio: float
+    reposicion_origen_nombre: str | None = None
+    reposicion_origen_lat: float | None = None
+    reposicion_origen_lng: float | None = None
+    reposicion_distancia_km: float | None = None
+    ubicacion_inicial_lat: float | None = None
+    ubicacion_inicial_lng: float | None = None
+    ubicacion_inicial_nombre: str | None = None
+
+class UsuarioCreate(BaseModel):
+    nombre: str
+    email: str
+    password: str
+    telefono: str | None = None
+    rol: str = "CONDUCTOR"
+    id_conductor: str | None = None
+
+class UsuarioLogin(BaseModel):
+    email: str
+    password: str
+
+class UsuarioUpdate(BaseModel):
+    nombre: str | None = None
+    email: str | None = None
+    password: str | None = None
+    telefono: str | None = None
+    rol: str | None = None
 
 class ViajeFinalizar(BaseModel):
     id_vehiculo: str
@@ -1009,9 +1035,43 @@ def iniciar_viaje(viaje: ViajeIniciar):
             "distancia_restante_km": dist_km,
             "nueva_orden": True # <--- LA BANDERA QUE OBLIGARÁ AL SIMULADOR A OBEDECER
         }
+
+        if viaje.ubicacion_inicial_lat and viaje.ubicacion_inicial_lng:
+            update_data["ubicacion_inicial"] = {
+                "nombre": viaje.ubicacion_inicial_nombre or "Posicion inicial",
+                "lat": viaje.ubicacion_inicial_lat,
+                "lng": viaje.ubicacion_inicial_lng
+            }
+            tele_existente = tele_ref.get()
+            if not tele_existente.exists or not tele_existente.to_dict().get('ubicacion'):
+                update_data["ubicacion"] = {
+                    "lat": viaje.ubicacion_inicial_lat,
+                    "lng": viaje.ubicacion_inicial_lng
+                }
+
         tele_ref.set(update_data, merge=True)
 
-        # 4. Cambiamos el estado del vehículo en la BD general
+        # 4. Guardar desplazamiento (reposicion) si existe distancia previa
+        if viaje.reposicion_origen_lat and viaje.reposicion_origen_lng and viaje.reposicion_distancia_km and viaje.reposicion_distancia_km > 0:
+            desplazamiento_doc = {
+                "id_vehiculo": viaje.id_vehiculo,
+                "tipo": "reposicion",
+                "origen_nombre": viaje.reposicion_origen_nombre or "Ubicacion previa",
+                "origen_lat": viaje.reposicion_origen_lat,
+                "origen_lng": viaje.reposicion_origen_lng,
+                "destino_nombre": viaje.origen_nombre,
+                "destino_lat": viaje.origen_lat,
+                "destino_lng": viaje.origen_lng,
+                "distancia_km": viaje.reposicion_distancia_km,
+                "combustible_estimado_L": round(viaje.reposicion_distancia_km * 0.35, 2),
+                "fecha": datetime.now(),
+                "id_viaje_principal": None
+            }
+            desp_ref = db.collection('desplazamientos').add(desplazamiento_doc)
+            desplazamiento_doc['id_viaje_principal'] = desp_ref[1].id
+            db.collection('desplazamientos').document(desp_ref[1].id).update({"id_viaje_principal": desp_ref[1].id})
+
+        # 5. Cambiamos el estado del vehículo en la BD general
         if vehiculo_doc.exists:
             vehiculo_ref.update({"estado": "En ruta", "kilometraje_actual": viaje.km_inicio})
 
@@ -1110,5 +1170,206 @@ def listar_viajes(id_vehiculo: str = None):
             viajes.append(viaje)
 
         return {"status": "success", "data": viajes}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/desplazamientos")
+def listar_desplazamientos(id_vehiculo: str = None):
+    try:
+        desp_ref = db.collection('desplazamientos')
+        if id_vehiculo:
+            desp_ref = desp_ref.where('id_vehiculo', '==', id_vehiculo)
+        desp_ref = desp_ref.order_by('fecha', direction='DESCENDING').limit(100)
+        docs = desp_ref.stream()
+
+        desplazamientos = []
+        for doc in docs:
+            desp = doc.to_dict()
+            desp['id'] = doc.id
+            if 'fecha' in desp:
+                desp['fecha'] = desp['fecha'].isoformat()
+            desplazamientos.append(desp)
+
+        return {"status": "success", "data": desplazamientos}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# ALERTAS DE MANTENIMIENTO PREVENTIVO
+# ============================================================================
+
+UMBRAL_MANTENIMIENTO_PCT = 0.85
+
+@app.get("/api/mantenimiento-alertas")
+def listar_alertas_mantenimiento(id_vehiculo: str = None):
+    try:
+        vehiculos_ref = db.collection('vehiculos')
+        if id_vehiculo:
+            vehiculos_docs = [vehiculos_ref.document(id_vehiculo).get()]
+        else:
+            vehiculos_docs = vehiculos_ref.stream()
+
+        alertas = []
+        for doc in vehiculos_docs:
+            if not doc.exists:
+                continue
+            vehiculo = doc.to_dict()
+            vid = vehiculo.get('id_vehiculo', doc.id)
+            kilometraje = vehiculo.get('kilometraje_actual', 0)
+
+            comp_ref = db.collection('vehiculos').document(doc.id).collection('componentes')
+            comp_doc = comp_ref.document('data').get()
+
+            if not comp_doc.exists:
+                continue
+
+            componentes = comp_doc.to_dict()
+            for nombre_comp, datos in componentes.items():
+                if not isinstance(datos, dict):
+                    continue
+                km_acum = datos.get('kilometraje_acumulado', 0)
+                tiempo_vida = datos.get('tiempo_vida', 0)
+
+                if tiempo_vida <= 0:
+                    continue
+
+                pct = km_acum / tiempo_vida if tiempo_vida > 0 else 0
+
+                if pct >= UMBRAL_MANTENIMIENTO_PCT:
+                    tipo_alerta = 'cambio_pieza' if pct >= 1.0 else 'mantenimiento_preventivo'
+                    gravedad = 'critico' if pct >= 1.0 else 'advertencia'
+
+                    alertas.append({
+                        "id_vehiculo": vid,
+                        "componente": nombre_comp,
+                        "kilometraje_acumulado": km_acum,
+                        "tiempo_vida_km": tiempo_vida,
+                        "porcentaje_desgaste": round(pct * 100, 1),
+                        "tipo_alerta": tipo_alerta,
+                        "gravedad": gravedad,
+                        "mensaje": f"{nombre_comp.capitalize()} de {vid} al {round(pct*100,1)}% de desgaste ({km_acum}/{tiempo_vida} km). {'Se requiere cambio inmediato.' if pct >= 1.0 else 'Proximo a requerir mantenimiento.'}",
+                        "conductor_asignado": vehiculo.get('conductor_asignado', '')
+                    })
+
+        alertas.sort(key=lambda x: x['porcentaje_desgaste'], reverse=True)
+        return {"status": "success", "data": alertas}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================================
+# CRUD USUARIOS
+# ============================================================================
+
+@app.get("/api/usuarios")
+def listar_usuarios():
+    try:
+        usuarios_ref = db.collection('usuarios')
+        docs = usuarios_ref.stream()
+        usuarios = []
+        for doc in docs:
+            u = doc.to_dict()
+            u['id'] = doc.id
+            usuarios.append(u)
+        return {"status": "success", "data": usuarios}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/usuarios/register")
+def registrar_usuario(usuario: UsuarioCreate):
+    try:
+        email_ref = db.collection('usuarios').where('email', '==', usuario.email).stream()
+        if any(True for _ in email_ref):
+            raise HTTPException(status_code=400, detail="El email ya esta registrado")
+
+        uid = f"user_{usuario.email.split('@')[0]}"
+        user_data = usuario.model_dump()
+        db.collection('usuarios').document(uid).set(user_data)
+
+        if usuario.rol == "CONDUCTOR":
+            if usuario.id_conductor:
+                id_conductor = usuario.id_conductor
+                cond_ref = db.collection('conductores').document(id_conductor)
+                if not cond_ref.get().exists:
+                    raise HTTPException(status_code=400, detail=f"El conductor {id_conductor} no existe")
+                user_data['id_conductor'] = id_conductor
+            else:
+                id_conductor = f"C-{uid}"
+                user_data['id_conductor'] = id_conductor
+                conductor_data = {
+                    "id_conductor": id_conductor,
+                    "nombre": usuario.nombre,
+                    "licencia": "",
+                    "telefono": usuario.telefono or "",
+                    "email": usuario.email,
+                    "experiencia_anios": 0,
+                    "calificacion": 5.0,
+                    "estado": "Disponible"
+                }
+                db.collection('conductores').document(id_conductor).set(conductor_data)
+
+        return {
+            "status": "success",
+            "mensaje": f"Usuario {usuario.nombre} registrado exitosamente",
+            "data": {"id": uid, **user_data}
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/usuarios/login")
+def login_usuario(credenciales: UsuarioLogin):
+    try:
+        email_ref = db.collection('usuarios').where('email', '==', credenciales.email).stream()
+        docs = list(email_ref)
+        if not docs:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        user = docs[0].to_dict()
+        user['id'] = docs[0].id
+
+        if user.get('password') != credenciales.password:
+            raise HTTPException(status_code=401, detail="Contrasena incorrecta")
+
+        vehiculo_asignado = None
+        if user.get('rol') == 'CONDUCTOR':
+            id_conductor = user.get('id_conductor') or f"C-{user['id']}"
+            vehiculos = db.collection('vehiculos').where('conductor_asignado', '==', id_conductor).stream()
+            for vdoc in vehiculos:
+                vehiculo_asignado = vdoc.to_dict().get('id_vehiculo', vdoc.id)
+                break
+            user['ref'] = vehiculo_asignado
+
+        return {"status": "success", "data": user}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/usuarios/{id_usuario}")
+def actualizar_usuario(id_usuario: str, usuario: UsuarioUpdate):
+    try:
+        doc_ref = db.collection('usuarios').document(id_usuario)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+        update_data = {k: v for k, v in usuario.model_dump().items() if v is not None}
+        doc_ref.update(update_data)
+        return {"status": "success", "mensaje": f"Usuario {id_usuario} actualizado"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/usuarios/{id_usuario}")
+def eliminar_usuario(id_usuario: str):
+    try:
+        doc_ref = db.collection('usuarios').document(id_usuario)
+        if not doc_ref.get().exists:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        doc_ref.delete()
+        return {"status": "success", "mensaje": f"Usuario {id_usuario} eliminado"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

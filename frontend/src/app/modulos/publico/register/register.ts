@@ -22,7 +22,7 @@ export class RegisterComponent {
   private authService = inject(AuthService);
   private router = inject(Router);
 
-  formData = { nombre: '', email: '', empresa: '', telefono: '', password: '', confirmPassword: '' };
+  formData = { nombre: '', email: '', empresa: '', telefono: '', password: '', confirmPassword: '', rol: 'CONDUCTOR' };
   submitted = false; registrado = false; cargando = false;
   errores: Record<string, string> = {};
   mostrarPassword = false; mostrarConfirm = false;
@@ -51,7 +51,14 @@ export class RegisterComponent {
     if (!this.validar()) return;
     this.cargando = true;
     this.authService.register(this.formData).subscribe({
-      next: (r: any) => { this.cargando = false; if (r.status === 'success') { this.registrado = true; setTimeout(() => this.router.navigate(['/admin/dashboard']), 2000); } else this.errores['general'] = 'Error al registrar'; },
+      next: (r: any) => {
+        this.cargando = false;
+        if (r.status === 'success') {
+          this.registrado = true;
+          const destino = this.formData.rol === 'CONDUCTOR' ? '/conductor' : '/admin/dashboard';
+          setTimeout(() => this.router.navigate([destino]), 2000);
+        } else this.errores['general'] = 'Error al registrar';
+      },
       error: () => { this.cargando = false; this.errores['general'] = 'Error. El email podria estar en uso.'; }
     });
   }
