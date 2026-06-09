@@ -1,4 +1,8 @@
+import sys
 import os
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -29,21 +33,30 @@ app.add_middleware(
 
 db = db_manager.get_db()
 
-# --- CONFIGURACIÓN DE IA GENERATIVA (OpenRouter + DeepSeek) ---
-client = OpenAI(
-    base_url=os.getenv("OPENROUTER_BASE_URL"),
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-)
-MODEL = os.getenv("OPENROUTER_MODEL")
-
 import traceback
+
+# --- CONFIGURACIÓN DE IA GENERATIVA (OpenRouter + DeepSeek) ---
+MODEL = os.getenv("OPENROUTER_MODEL")
+client = None
 
 print("=" * 60)
 print("VERIFICACION DE CONFIGURACION OPENROUTER/DEEPSEEK")
-print(f"  OPENROUTER_BASE_URL:  {os.getenv('OPENROUTER_BASE_URL') or '⚠️ NO DEFINIDO'}")
-print(f"  OPENROUTER_API_KEY:   {('***' + os.getenv('OPENROUTER_API_KEY', '')[-8:]) if os.getenv('OPENROUTER_API_KEY') else '⚠️ NO DEFINIDO'}")
-print(f"  OPENROUTER_MODEL:     {MODEL or '⚠️ NO DEFINIDO'}")
-print(f"  client.base_url:      {client.base_url}")
+print(f"  OPENROUTER_BASE_URL:  {os.getenv('OPENROUTER_BASE_URL') or 'NO DEFINIDO'}")
+print(f"  OPENROUTER_API_KEY:   {('***' + os.getenv('OPENROUTER_API_KEY', '')[-8:]) if os.getenv('OPENROUTER_API_KEY') else 'NO DEFINIDO'}")
+print(f"  OPENROUTER_MODEL:     {MODEL or 'NO DEFINIDO'}")
+
+if os.getenv("OPENROUTER_API_KEY"):
+    try:
+        client = OpenAI(
+            base_url=os.getenv("OPENROUTER_BASE_URL"),
+            api_key=os.getenv("OPENROUTER_API_KEY"),
+        )
+        print(f"  client.base_url:      {client.base_url}")
+        print("  [OK] Cliente IA inicializado correctamente.")
+    except Exception as e:
+        print(f"  [ERROR] Error al inicializar cliente IA: {e}")
+else:
+    print("  [AVISO] Chat IA deshabilitado (sin OPENROUTER_API_KEY). Resto del API funciona.")
 print("=" * 60)
 
 # --- CARGA DE MODELOS LOCALES ---
@@ -223,6 +236,8 @@ def obtener_incidentes():
         raise HTTPException(status_code=500, detail=str(e))
 @app.post("/api/chat")
 async def procesar_chat(req: MensajeChat):
+    if client is None:
+        return {"respuesta": "El asistente IA no está configurado. Agrega OPENROUTER_API_KEY al archivo .env del backend."}
     try:
         print(f"\n📨 CHAT RECIBIDO: rol={req.rol}, ref={req.referencia}, mensaje=\"{req.mensaje[:80]}...\"")
         print(f"   MODEL configurado: {MODEL}")
@@ -1019,6 +1034,18 @@ def iniciar_viaje(viaje: ViajeIniciar):
         # Convertimos a formato Firebase
         puntos_firebase = [{"lat": p[0], "lng": p[1]} for p in puntos_ruta] if puntos_ruta else []
 
+        # Calcular ruta de reposición detallada si existe
+        puntos_reposicion = []
+        dist_reposicion_km = 0.0
+        if viaje.reposicion_origen_lat and viaje.reposicion_origen_lng:
+            puntos_rep, dist_rep = routing_engine.obtener_ruta_optima(
+                viaje.reposicion_origen_lat, viaje.reposicion_origen_lng,
+                viaje.origen_lat, viaje.origen_lng
+            )
+            if dist_rep > 0.05:
+                puntos_reposicion = [{"lat": p[0], "lng": p[1]} for p in puntos_rep]
+                dist_reposicion_km = dist_rep
+
         # 3. Actualizamos la telemetría para que el Simulador y el Mapa reaccionen
         tele_ref = db.collection('telemetria_flota').document(viaje.id_vehiculo)
         # En main.py (Endpoint /api/viajes/iniciar)
@@ -1027,12 +1054,14 @@ def iniciar_viaje(viaje: ViajeIniciar):
             "km_inicio_viaje": viaje.km_inicio,
             "origen_viaje": {"nombre": viaje.origen_nombre, "lat": viaje.origen_lat, "lng": viaje.origen_lng},
             "destino_viaje": {"nombre": viaje.destino_nombre, "lat": viaje.destino_lat, "lng": viaje.destino_lng},
-            "destino": {"nombre": viaje.destino_nombre, "lat": viaje.destino_lat, "lng": viaje.destino_lng},
+            "destino": {"nombre": viaje.origen_nombre, "lat": viaje.origen_lat, "lng": viaje.origen_lng} if puntos_reposicion else {"nombre": viaje.destino_nombre, "lat": viaje.destino_lat, "lng": viaje.destino_lng},
             "fecha_inicio_viaje": datetime.now(),
             "tipo_viaje": "manual",
-            "mision": f"Viaje asignado a {viaje.destino_nombre}",
+            "mision": "Yendo a punto de carga" if puntos_reposicion else f"Viaje asignado a {viaje.destino_nombre}",
+            "fase_viaje": "reposicion" if puntos_reposicion else "principal",
+            "puntos_reposicion": puntos_reposicion,
             "puntos_ruta": puntos_firebase, 
-            "distancia_restante_km": dist_km,
+            "distancia_restante_km": dist_reposicion_km if puntos_reposicion else dist_km,
             "nueva_orden": True # <--- LA BANDERA QUE OBLIGARÁ AL SIMULADOR A OBEDECER
         }
 
@@ -1218,13 +1247,11 @@ def listar_alertas_mantenimiento(id_vehiculo: str = None):
             kilometraje = vehiculo.get('kilometraje_actual', 0)
 
             comp_ref = db.collection('vehiculos').document(doc.id).collection('componentes')
-            comp_doc = comp_ref.document('data').get()
+            comp_docs = comp_ref.stream()
 
-            if not comp_doc.exists:
-                continue
-
-            componentes = comp_doc.to_dict()
-            for nombre_comp, datos in componentes.items():
+            for comp_doc in comp_docs:
+                nombre_comp = comp_doc.id
+                datos = comp_doc.to_dict()
                 if not isinstance(datos, dict):
                     continue
                 km_acum = datos.get('kilometraje_acumulado', 0)

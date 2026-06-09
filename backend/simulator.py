@@ -214,18 +214,13 @@ def cargar_camiones_dinamicos(camiones_actuales):
 
 def actualizar_componentes_kilometraje(vid, distancia_km):
     try:
-        comp_ref = db.collection('vehiculos').document(vid).collection('componentes').document('data')
-        comp_doc = comp_ref.get()
-        if not comp_doc.exists:
-            return
-        data = comp_doc.to_dict()
-        actualizado = False
-        for nombre, comp in data.items():
-            if isinstance(comp, dict):
-                comp['kilometraje_acumulado'] = round(comp.get('kilometraje_acumulado', 0) + distancia_km, 2)
-                actualizado = True
-        if actualizado:
-            comp_ref.set(data, merge=True)
+        comp_ref = db.collection('vehiculos').document(vid).collection('componentes')
+        comp_docs = comp_ref.stream()
+        for comp_doc in comp_docs:
+            comp_data = comp_doc.to_dict()
+            if isinstance(comp_data, dict):
+                nuevo_km = round(comp_data.get('kilometraje_acumulado', 0) + distancia_km, 2)
+                comp_ref.document(comp_doc.id).update({'kilometraje_acumulado': nuevo_km})
     except Exception as e:
         pass
 
@@ -271,18 +266,34 @@ def actualizar_flota():
                         camion["finalizado"] = False
                         camion["destino"] = datos_ia.get("destino", camion["destino"])
 
-                        if "puntos_ruta" in datos_ia and len(datos_ia["puntos_ruta"]) > 0:
+                        fase = datos_ia.get("fase_viaje", "principal")
+                        camion["fase_viaje"] = fase
+
+                        if fase == "reposicion" and "puntos_reposicion" in datos_ia and len(datos_ia["puntos_reposicion"]) > 0:
+                            # Cargar la ruta de reposición física A -> B
                             nueva_ruta = []
-                            for p in datos_ia["puntos_ruta"]:
+                            for p in datos_ia["puntos_reposicion"]:
                                 lat = p["lat"] if isinstance(p, dict) else p[0]
                                 lng = p["lng"] if isinstance(p, dict) else p[1]
                                 nueva_ruta.append([lng, lat])
                             camion["ruta_puntos"] = nueva_ruta
+                            camion["distancia_total_ruta"] = datos_ia.get("distancia_restante_km", 0.1)
+                            print(f"📍 {vid}: Enrutado en REPOSICION. Distancia: {round(camion['distancia_total_ruta'], 2)} km")
                         else:
-                            pts, _ = obtener_ruta_detallada(vid, camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
-                            camion["ruta_puntos"] = pts
+                            # Cargar ruta principal B -> C
+                            if "puntos_ruta" in datos_ia and len(datos_ia["puntos_ruta"]) > 0:
+                                nueva_ruta = []
+                                for p in datos_ia["puntos_ruta"]:
+                                    lat = p["lat"] if isinstance(p, dict) else p[0]
+                                    lng = p["lng"] if isinstance(p, dict) else p[1]
+                                    nueva_ruta.append([lng, lat])
+                                camion["ruta_puntos"] = nueva_ruta
+                            else:
+                                pts, _ = obtener_ruta_detallada(vid, camion["lat"], camion["lng"], camion["destino"]["lat"], camion["destino"]["lng"])
+                                camion["ruta_puntos"] = pts
+                            camion["distancia_total_ruta"] = datos_ia.get("distancia_restante_km", 0.1)
+                            print(f"📍 {vid}: Enrutado en RUTA PRINCIPAL. Distancia: {round(camion['distancia_total_ruta'], 2)} km")
 
-                        camion["distancia_total_ruta"] = datos_ia.get("distancia_restante_km", 0.1)
                         camion["indice_ruta"] = 0
                         camion["km_inicio_viaje"] = camion["km"]
                         db.collection(u'telemetria_flota').document(vid).update({"nueva_orden": False})
@@ -336,6 +347,43 @@ def actualizar_flota():
 
                     print(f"🚛 {vid}: indic={camion['indice_ruta']}/{len(camion['ruta_puntos'])} km={camion['km']:.1f} pos=({camion['lat']:.4f},{camion['lng']:.4f})")
             else:
+                # Comprobar si hemos terminado la fase de reposición
+                if camion.get("fase_viaje") == "reposicion":
+                    print(f"🏁 {vid}: Llegó al punto de carga. Iniciando viaje principal...")
+                    try:
+                        doc = db.collection(u'telemetria_flota').document(vid).get()
+                        if doc.exists:
+                            datos_tele = doc.to_dict()
+                            pts_principal = datos_tele.get("puntos_ruta", [])
+                            destino_final = datos_tele.get("destino_viaje", camion["destino"])
+                            
+                            camion["fase_viaje"] = "principal"
+                            camion["destino"] = destino_final
+                            camion["indice_ruta"] = 0
+                            
+                            nueva_ruta = []
+                            for p in pts_principal:
+                                lat = p["lat"] if isinstance(p, dict) else p[0]
+                                lng = p["lng"] if isinstance(p, dict) else p[1]
+                                nueva_ruta.append([lng, lat])
+                            camion["ruta_puntos"] = nueva_ruta
+                            
+                            # Calcular distancia física real del viaje principal
+                            _, dist_princ = obtener_ruta_detallada(vid, camion["lat"], camion["lng"], destino_final["lat"], destino_final["lng"])
+                            camion["distancia_total_ruta"] = max(dist_princ, 0.1)
+                            camion["km_inicio_viaje"] = camion["km"]
+                            
+                            db.collection(u'telemetria_flota').document(vid).update({
+                                "fase_viaje": "principal",
+                                "mision": f"Ruta a {destino_final['nombre']}",
+                                "destino": destino_final,
+                                "distancia_restante_km": camion["distancia_total_ruta"],
+                                "km_inicio_viaje": camion["km"]
+                            })
+                            continue
+                    except Exception as e:
+                        print(f"❌ Error al pasar a fase principal [{vid}]: {e}")
+
                 print(f"🏁 {vid}: FINALIZADO")
                 registrar_viaje_finalizado(camion)
                 camion["finalizado"] = True
@@ -344,7 +392,8 @@ def actualizar_flota():
                     db.collection(u'telemetria_flota').document(vid).update({
                         "viaje_activo": False,
                         "mision": "Esperando orden",
-                        "puntos_ruta": []
+                        "puntos_ruta": [],
+                        "fase_viaje": "completado"
                     })
                     db.collection(u'vehiculos').document(vid).update({
                         "estado": "Disponible",

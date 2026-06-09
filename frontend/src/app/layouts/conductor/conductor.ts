@@ -61,6 +61,7 @@ export class ConductorComponent implements OnInit, OnDestroy {
   private destMarker!: L.Marker;
   private origenMarker!: L.Marker;
   private routeLine: L.Polyline | null = null;
+  private routeLineRepos: L.Polyline | null = null;
   private rutaAnterior: string = '';
   private pollSub?: Subscription;
 
@@ -338,19 +339,42 @@ export class ConductorComponent implements OnInit, OnDestroy {
   }
 
   private mapaDibujarRuta(posActual: L.LatLng, posDestino: L.LatLng) {
+    // 1. Dibujar ruta de reposición detallada si existe y está en fase reposición
+    if (this.miCamion.fase_viaje === 'reposicion' && this.miCamion.puntos_reposicion?.length > 0) {
+      const ptsRepos = this.miCamion.puntos_reposicion.map((p: any) => [p.lat, p.lng] as L.LatLngTuple);
+      if (this.routeLineRepos) {
+        this.routeLineRepos.setLatLngs(ptsRepos);
+      } else {
+        this.routeLineRepos = L.polyline(ptsRepos, {
+          color: '#ef4444',
+          opacity: 0.8,
+          weight: 3,
+          dashArray: '8 4'
+        }).addTo(this.map);
+      }
+    } else {
+      if (this.routeLineRepos) {
+        this.map.removeLayer(this.routeLineRepos);
+        this.routeLineRepos = null;
+      }
+    }
+
+    // 2. Dibujar ruta principal (Atenuada si está en reposición)
     const puntosRuta = this.miCamion.puntos_ruta?.length > 0
       ? this.miCamion.puntos_ruta.map((p: any) => [p.lat, p.lng] as L.LatLngTuple)
       : [[posActual.lat, posActual.lng], [posDestino.lat, posDestino.lng]] as L.LatLngTuple[];
 
-    const hashRuta = JSON.stringify(puntosRuta);
+    const opacity = this.miCamion.fase_viaje === 'reposicion' ? 0.35 : 0.8;
+    const hashRuta = JSON.stringify(puntosRuta) + '_' + opacity;
     if (hashRuta === this.rutaAnterior && this.routeLine) return;
     this.rutaAnterior = hashRuta;
 
     if (this.routeLine) {
       this.routeLine.setLatLngs(puntosRuta);
+      this.routeLine.setStyle({ opacity });
     } else {
       this.routeLine = L.polyline(puntosRuta, {
-        color: '#f97316', opacity: 0.8, weight: 4,
+        color: '#f97316', opacity, weight: 4,
         lineCap: 'round', lineJoin: 'round'
       }).addTo(this.map);
     }
