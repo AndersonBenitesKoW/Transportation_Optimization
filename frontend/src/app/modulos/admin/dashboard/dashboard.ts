@@ -255,27 +255,40 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
         }
       }
 
-      // 2. Dibujar ruta principal B -> C (Atenuada si está en reposición)
-      const puntosRuta: L.LatLngTuple[] = camion.puntos_ruta?.length > 0
-        ? camion.puntos_ruta.map((p: any) => [p.lat, p.lng] as L.LatLngTuple)
-        : [[posActual.lat, posActual.lng], [posDestino.lat, posDestino.lng]] as L.LatLngTuple[];
-      
-      const opacity = camion.fase_viaje === 'reposicion' ? 0.35 : 0.75;
-      if (this.routes[camion.id_camion]) {
-        this.routes[camion.id_camion].setLatLngs(puntosRuta);
-        this.routes[camion.id_camion].setStyle({ color, opacity, weight: 4 });
-      } else {
-        this.routes[camion.id_camion] = L.polyline(puntosRuta, { color, opacity, weight: 4 }).addTo(this.map);
-      }
+      // 2. Dibujar ruta principal B -> C (si el viaje está activo o tiene puntos de ruta guardados)
+      const tienePuntos = camion.puntos_ruta?.length > 0;
+      if (tienePuntos || camion.viaje_activo) {
+        const puntosRuta: L.LatLngTuple[] = tienePuntos
+          ? camion.puntos_ruta.map((p: any) => [p.lat, p.lng] as L.LatLngTuple)
+          : [[posActual.lat, posActual.lng], [posDestino.lat, posDestino.lng]] as L.LatLngTuple[];
+        
+        const opacity = camion.fase_viaje === 'reposicion' ? 0.35 : 0.75;
+        if (this.routes[camion.id_camion]) {
+          this.routes[camion.id_camion].setLatLngs(puntosRuta);
+          this.routes[camion.id_camion].setStyle({ color, opacity, weight: 4 });
+        } else {
+          this.routes[camion.id_camion] = L.polyline(puntosRuta, { color, opacity, weight: 4 }).addTo(this.map);
+        }
 
-      const nombreDestino = camion.destino?.nombre || camion.destino_viaje?.nombre || 'Destino';
-      if (this.destMarkers[camion.id_camion]) {
-        this.destMarkers[camion.id_camion].setLatLng(posDestino);
-        this.destMarkers[camion.id_camion].setTooltipContent(nombreDestino);
+        const nombreDestino = camion.destino?.nombre || camion.destino_viaje?.nombre || 'Destino';
+        if (this.destMarkers[camion.id_camion]) {
+          this.destMarkers[camion.id_camion].setLatLng(posDestino);
+          this.destMarkers[camion.id_camion].setTooltipContent(nombreDestino);
+        } else {
+          const dm = L.marker(posDestino, { icon: this.destIcon }).addTo(this.map);
+          dm.bindTooltip(nombreDestino, { permanent: true, direction: 'top', offset: [0, -30], className: 'etiqueta-camion' });
+          this.destMarkers[camion.id_camion] = dm;
+        }
       } else {
-        const dm = L.marker(posDestino, { icon: this.destIcon }).addTo(this.map);
-        dm.bindTooltip(nombreDestino, { permanent: true, direction: 'top', offset: [0, -30], className: 'etiqueta-camion' });
-        this.destMarkers[camion.id_camion] = dm;
+        // Si no hay viaje activo ni puntos de ruta, limpiamos la ruta y el marcador de destino anterior
+        if (this.routes[camion.id_camion]) {
+          this.map.removeLayer(this.routes[camion.id_camion]);
+          delete this.routes[camion.id_camion];
+        }
+        if (this.destMarkers[camion.id_camion]) {
+          this.map.removeLayer(this.destMarkers[camion.id_camion]);
+          delete this.destMarkers[camion.id_camion];
+        }
       }
     });
     const currentIds = new Set(this.flotaOriginal.map((c: any) => c.id_camion));

@@ -293,3 +293,19 @@
   font-size: 1rem;
   margin: 0;
 }
+
+.alerta-card-resolve--warning {
+  background: linear-gradient(to right, #f59e0b, #d97706) !important;
+}
+
+.alerta-card-resolve--warning:hover {
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3) !important;
+}
+
+.alerta-card-resolve--danger {
+  background: linear-gradient(to right, #ef4444, #dc2626) !important;
+}
+
+.alerta-card-resolve--danger:hover {
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
+}

@@ -126,6 +126,59 @@ def actualizar_combustible_virtual(combustible_actual_L, capacidad_tanque_L):
     return combustible_actual_L
 
 
+def sincronizar_estado_camion_desde_firestore(camion):
+    vid = camion["id"]
+    try:
+        doc = db.collection('telemetria_flota').document(vid).get()
+        if doc.exists:
+            tele = doc.to_dict()
+            if "ubicacion" in tele and tele["ubicacion"]:
+                camion["lat"] = tele["ubicacion"].get("lat", camion["lat"])
+                camion["lng"] = tele["ubicacion"].get("lng", camion["lng"])
+            if "kilometraje" in tele:
+                camion["km"] = float(tele["kilometraje"])
+            if "combustible_actual_L" in tele:
+                camion["combustible"] = float(tele["combustible_actual_L"])
+            if "destino" in tele and tele["destino"]:
+                camion["destino"] = tele["destino"]
+            
+            viaje_activo = tele.get("viaje_activo", False)
+            fase = tele.get("fase_viaje", "principal")
+            camion["fase_viaje"] = fase
+            camion["finalizado"] = not viaje_activo
+            
+            # Cargar los puntos de la ruta activa para no recalcular
+            pts_key = "puntos_reposicion" if fase == "reposicion" else "puntos_ruta"
+            if pts_key in tele and tele[pts_key]:
+                nueva_ruta = []
+                for p in tele[pts_key]:
+                    lat = p["lat"] if isinstance(p, dict) else p[0]
+                    lng = p["lng"] if isinstance(p, dict) else p[1]
+                    nueva_ruta.append([lng, lat])
+                camion["ruta_puntos"] = nueva_ruta
+                camion["distancia_total_ruta"] = float(tele.get("distancia_restante_km", 0.1))
+                
+                # Encontrar el punto más cercano de la ruta para no empezar desde cero
+                if nueva_ruta:
+                    closest_idx = 0
+                    min_dist = float('inf')
+                    for idx, pt in enumerate(nueva_ruta):
+                        d = (pt[0] - camion["lng"])**2 + (pt[1] - camion["lat"])**2
+                        if d < min_dist:
+                            min_dist = d
+                            closest_idx = idx
+                    camion["indice_ruta"] = closest_idx
+                else:
+                    camion["indice_ruta"] = 0
+            else:
+                camion["ruta_puntos"] = []
+                camion["indice_ruta"] = 0
+            
+            print(f"📦 {vid} sincronizado con Firestore: pos=({camion['lat']:.4f},{camion['lng']:.4f}) km={camion['km']:.1f} viaje_activo={viaje_activo} ruta={len(camion['ruta_puntos'])}pts idx={camion['indice_ruta']}")
+    except Exception as e:
+        print(f"❌ Error al sincronizar {vid} desde Firestore: {e}")
+
+
 def cargar_camiones_dinamicos(camiones_actuales):
     try:
         docs = db.collection('vehiculos').stream()
@@ -139,66 +192,55 @@ def cargar_camiones_dinamicos(camiones_actuales):
 
             tele_ref = db.collection('telemetria_flota').document(vid)
             tele_doc = tele_ref.get()
-            if tele_doc.exists:
-                tele = tele_doc.to_dict()
-                km = tele.get('kilometraje', v.get('kilometraje_actual', 0))
-                combustible = tele.get('combustible_actual_L', v.get('capacidad_tanque_L', 400) * 0.9)
-                lat = tele.get('ubicacion', {}).get('lat', -8.1159)
-                lng = tele.get('ubicacion', {}).get('lng', -79.0299)
-                viaje_activo = tele.get('viaje_activo', False)
-                destino_actual = tele.get('destino', random.choice(DESTINOS))
-            else:
-                km = v.get('kilometraje_actual', 0)
-                combustible = int(v.get('capacidad_tanque_L', 400) * 0.9)
-                lat = -8.1159
-                lng = -79.0299
-                viaje_activo = False
-                destino_actual = random.choice(DESTINOS)
-
-            nuevo = {
+            
+            camion_nuevo = {
                 "id": vid,
                 "id_conductor": v.get('conductor_asignado', 'C-001'),
-                "lat": lat,
-                "lng": lng,
-                "km": float(km),
-                "combustible": float(combustible),
+                "lat": -8.1159,
+                "lng": -79.0299,
+                "km": float(v.get('kilometraje_actual', 0)),
+                "combustible": float(v.get('capacidad_tanque_L', 400) * 0.9),
                 "capacidad_tanque_L": float(v.get('capacidad_tanque_L', 400)),
                 "edad": int(v.get('edad_motor_meses', 0)),
-                "destino": destino_actual,
+                "destino": random.choice(DESTINOS),
                 "ruta_puntos": [],
                 "indice_ruta": 0,
-                "finalizado": not viaje_activo,
+                "finalizado": True,
                 "distancia_total_ruta": 0,
                 "incidentes_conteo": 0,
                 "es_estatico": False
             }
-            camiones_actuales[vid] = nuevo
 
-            if not tele_doc.exists:
+            if tele_doc.exists:
+                sincronizar_estado_camion_desde_firestore(camion_nuevo)
+                print(f"🔄 {vid}: vehículo dinámico cargado desde Firestore (km={round(camion_nuevo['km'], 1)})")
+            else:
                 tele_ref.set({
                     "id_camion": vid,
                     "conductor_asignado": {"nombre": obtener_conductor_nombre(v.get('conductor_asignado', '')), "id_conductor": v.get('conductor_asignado', '')},
-                    "ubicacion": {"lat": lat, "lng": lng},
-                    "kilometraje": float(km),
-                    "combustible_actual_L": float(combustible),
-                    "capacidad_tanque_L": float(v.get('capacidad_tanque_L', 400)),
-                    "nivel_combustible_pct": round((combustible / float(v.get('capacidad_tanque_L', 400))) * 100, 2) if float(v.get('capacidad_tanque_L', 400)) > 0 else 0,
+                    "ubicacion": {"lat": camion_nuevo["lat"], "lng": camion_nuevo["lng"]},
+                    "kilometraje": camion_nuevo["km"],
+                    "combustible_actual_L": camion_nuevo["combustible"],
+                    "capacidad_tanque_L": camion_nuevo["capacidad_tanque_L"],
+                    "nivel_combustible_pct": 90.0,
                     "estado_motor": "Optimo",
-                    "edad_motor_meses": int(v.get('edad_motor_meses', 0)),
-                    "horas_conduccion": 0,
-                    "temperatura_motor": 0,
-                    "consumo_instante": 0,
-                    "destino": destino_actual,
+                    "edad_motor_meses": camion_nuevo["edad"],
+                    "horas_conduccion": 0.0,
+                    "temperatura_motor": 85.0,
+                    "consumo_instante": 0.0,
+                    "destino": camion_nuevo["destino"],
                     "mision": "Esperando orden",
-                    "distancia_restante_km": 0,
+                    "distancia_restante_km": 0.0,
                     "ultima_actualizacion": datetime.now(),
                     "viaje_activo": False,
-                    "km_inicio_viaje": float(km),
+                    "km_inicio_viaje": camion_nuevo["km"],
                     "puntos_ruta": []
                 })
                 print(f"🆕 {vid}: nuevo vehículo del CRUD inicializado en telemetria")
-            else:
-                print(f"🔄 {vid}: vehículo dinámico cargado desde Firestore (km={round(km, 1)})")
+                camion_nuevo["finalizado"] = True
+
+            camiones_actuales[vid] = camion_nuevo
+
 
         ids_actuales = set(camiones_actuales.keys())
         for vid in list(ids_actuales):
@@ -212,21 +254,70 @@ def cargar_camiones_dinamicos(camiones_actuales):
         print(f"⚠️ Error cargando camiones dinámicos: {e}")
 
 
+def crear_alerta_simulador(vid, componente, tipo, km_acumulado, tiempo_vida, limite_revision):
+    try:
+        alerts_ref = db.collection('alertas')
+        query = alerts_ref.where('id_vehiculo', '==', vid)\
+                          .where('componente', '==', componente)\
+                          .where('tipo_alerta', '==', tipo)\
+                          .where('estado', '==', 'Pendiente')
+        docs = list(query.stream())
+        if not docs:
+            msg = f"⚠️ Cambio obligatorio: Componente \"{componente}\" del vehículo {vid} ha superado su vida útil ({km_acumulado:.1f} / {tiempo_vida} km)." if tipo == 'Reemplazo' \
+                  else f"🔧 Revisión preventiva: Componente \"{componente}\" del vehículo {vid} requiere inspección ({km_acumulado:.1f} km totales)."
+            priority = 'Critica' if tipo == 'Reemplazo' else 'Alta'
+            alerts_ref.add({
+                'id_vehiculo': vid,
+                'componente': componente,
+                'tipo_alerta': tipo,
+                'estado': 'Pendiente',
+                'prioridad': priority,
+                'mensaje': msg,
+                'fecha_creacion': datetime.now().isoformat(),
+                'kilometraje_acumulado': km_acumulado,
+                'tiempo_vida': tiempo_vida,
+                'limite_revision': limite_revision
+            })
+            print(f"🚨 [Simulador] Alerta {tipo} creada para {vid} - {componente}")
+    except Exception as e:
+        print(f"⚠️ Error creando alerta en simulador: {e}")
+
+
 def actualizar_componentes_kilometraje(vid, distancia_km):
     try:
         comp_ref = db.collection('vehiculos').document(vid).collection('componentes')
         comp_docs = comp_ref.stream()
         for comp_doc in comp_docs:
+            nombre = comp_doc.id
             comp_data = comp_doc.to_dict()
             if isinstance(comp_data, dict):
-                nuevo_km = round(comp_data.get('kilometraje_acumulado', 0) + distancia_km, 2)
-                comp_ref.document(comp_doc.id).update({'kilometraje_acumulado': nuevo_km})
+                km_acumulado = round(comp_data.get('kilometraje_acumulado', 0) + distancia_km, 2)
+                km_desde_revision = round(comp_data.get('kilometraje_desde_revision', 0) + distancia_km, 2)
+                tiempo_vida = comp_data.get('tiempo_vida', 0)
+                limite_revision = comp_data.get('limite_revision', 2.0) # default 2.0
+
+                comp_ref.document(nombre).update({
+                    'kilometraje_acumulado': km_acumulado,
+                    'kilometraje_desde_revision': km_desde_revision
+                })
+
+                # Alerta 1: Revisión Preventiva
+                if limite_revision > 0 and km_desde_revision >= limite_revision:
+                    crear_alerta_simulador(vid, nombre, 'Revision', km_acumulado, tiempo_vida, limite_revision)
+
+                # Alerta 2: Cambio de Pieza
+                if tiempo_vida > 0 and km_acumulado >= tiempo_vida:
+                    crear_alerta_simulador(vid, nombre, 'Reemplazo', km_acumulado, tiempo_vida, limite_revision)
     except Exception as e:
-        pass
+        print(f"⚠️ Error actualizando componentes en simulador: {e}")
 
 
 def actualizar_flota():
     print("🚀 FleetMind AI: Iniciando motor de física y trazabilidad real...")
+
+    # Sincronizar camiones estáticos (BASE) desde Firestore al iniciar el simulador
+    for camion in CAMIONES_BASE:
+        sincronizar_estado_camion_desde_firestore(camion)
 
     camiones_dinamicos = {}
     contador_sincronizacion = 0
@@ -392,7 +483,6 @@ def actualizar_flota():
                     db.collection(u'telemetria_flota').document(vid).update({
                         "viaje_activo": False,
                         "mision": "Esperando orden",
-                        "puntos_ruta": [],
                         "fase_viaje": "completado"
                     })
                     db.collection(u'vehiculos').document(vid).update({
@@ -445,7 +535,7 @@ def actualizar_flota():
 
                 conductor_info = {"nombre": obtener_conductor_nombre(camion["id_conductor"]), "id_conductor": camion["id_conductor"]}
 
-                db.collection(u'telemetria_flota').document(vid).set({
+                telemetry_data = {
                     "id_camion": vid,
                     "conductor_asignado": conductor_info,
                     "ubicacion": {"lat": camion["lat"], "lng": camion["lng"]},
@@ -463,9 +553,15 @@ def actualizar_flota():
                     "distancia_restante_km": round(dist_restante, 2),
                     "ultima_actualizacion": datetime.now(),
                     "viaje_activo": not camion.get("finalizado", False),
-                    "km_inicio_viaje": camion.get("km_inicio_viaje", camion["km"]),
-                    "puntos_ruta": puntos_ruta_firestore
-                }, merge=True)
+                    "km_inicio_viaje": camion.get("km_inicio_viaje", camion["km"])
+                }
+
+                if camion.get("fase_viaje") == "reposicion":
+                    telemetry_data["puntos_reposicion"] = puntos_ruta_firestore
+                else:
+                    telemetry_data["puntos_ruta"] = puntos_ruta_firestore
+
+                db.collection(u'telemetria_flota').document(vid).set(telemetry_data, merge=True)
                 print(f"📡 {vid}: telemetria enviada (ruta={len(puntos_ruta_firestore)}pts)")
             except Exception as e:
                 print(f"❌ Error en Firebase [{vid}]: {e}")

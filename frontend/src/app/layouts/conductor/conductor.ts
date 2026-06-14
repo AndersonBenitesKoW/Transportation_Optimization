@@ -6,6 +6,7 @@ import { FlotaService } from '../../services/flota';
 import { Subscription, timer, switchMap, exhaustMap } from 'rxjs';
 import { ApiService } from '../../services/api.service';
 import { AuthService } from '../../services/auth.service';
+import { MantenimientoService } from '../../services/mantenimiento.service';
 import { ThemeService } from '../../services/theme.service';
 import { IconComponent } from '../../components/icon.component';
 import * as L from 'leaflet';
@@ -46,6 +47,8 @@ export class ConductorComponent implements OnInit, OnDestroy {
   private apiService = inject(ApiService);
   private authService = inject(AuthService);
   private flotaService = inject(FlotaService);
+  private mantenimientoService = inject(MantenimientoService);
+  private alertsSub?: Subscription;
   private router = inject(Router);
   readonly themeService = inject(ThemeService);
 
@@ -57,9 +60,9 @@ export class ConductorComponent implements OnInit, OnDestroy {
   cargandoIA: boolean = false;
 
   private map!: L.Map;
-  private marker!: L.Marker;
-  private destMarker!: L.Marker;
-  private origenMarker!: L.Marker;
+  private marker: L.Marker | null = null;
+  private destMarker: L.Marker | null = null;
+  private origenMarker: L.Marker | null = null;
   private routeLine: L.Polyline | null = null;
   private routeLineRepos: L.Polyline | null = null;
   private rutaAnterior: string = '';
@@ -120,14 +123,29 @@ export class ConductorComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.apiService.getMantenimientoAlertas(this.usuarioActual?.ref).subscribe({
-      next: (r: any) => { this.alertasMantenimiento = r.data || []; },
-      error: (e: any) => console.error('Error alertas mantenimiento conductor:', e)
-    });
+    if (this.usuarioActual?.ref) {
+      this.alertsSub = this.mantenimientoService.getAlertasVehiculoRealtime(this.usuarioActual.ref).subscribe({
+        next: (list) => {
+          this.alertasMantenimiento = list.map(a => {
+            const pct = a.tiempo_vida > 0 ? (a.kilometraje_acumulado / a.tiempo_vida) * 100 : 0;
+            return {
+              componente: a.componente,
+              gravedad: a.tipo_alerta === 'Reemplazo' ? 'critico' : 'advertencia',
+              porcentaje_desgaste: Math.min(Math.round(pct), 100),
+              kilometraje_acumulado: a.kilometraje_acumulado,
+              tiempo_vida_km: a.tiempo_vida,
+              mensaje: a.mensaje
+            };
+          });
+        },
+        error: (e: any) => console.error('Error alertas mantenimiento conductor:', e)
+      });
+    }
   }
 
   ngOnDestroy() {
     this.pollSub?.unsubscribe();
+    this.alertsSub?.unsubscribe();
     if (this.map) {
       this.map.remove();
     }
@@ -290,9 +308,30 @@ export class ConductorComponent implements OnInit, OnDestroy {
       else console.warn('⚠️ actualizarMapaConductor: miCamion.ubicacion es null/undefined. Datos:', JSON.stringify(this.miCamion));
       return;
     }
-    console.log(`🟢 actualizarMapaConductor: ubicacion=(${this.miCamion.ubicacion.lat},${this.miCamion.ubicacion.lng}) destino=(${this.miCamion.destino?.lat},${this.miCamion.destino?.lng}) puntos_ruta=${this.miCamion.puntos_ruta?.length || 0}pts`);
 
     const posActual = L.latLng(this.miCamion.ubicacion.lat, this.miCamion.ubicacion.lng);
+
+    // Si no hay viaje activo ni puntos de ruta, limpiamos marcadores de destino, origen y líneas
+    if (!this.miCamion.viaje_activo && !(this.miCamion.puntos_ruta?.length > 0)) {
+      if (this.destMarker) { this.map.removeLayer(this.destMarker); this.destMarker = null; }
+      if (this.origenMarker) { this.map.removeLayer(this.origenMarker); this.origenMarker = null; }
+      if (this.routeLine) { this.map.removeLayer(this.routeLine); this.routeLine = null; }
+      if (this.routeLineRepos) { this.map.removeLayer(this.routeLineRepos); this.routeLineRepos = null; }
+
+      if (this.marker) {
+        this.marker.setLatLng(posActual);
+      } else {
+        this.marker = L.marker(posActual, { icon: this.darkIcon }).addTo(this.map);
+        this.marker.bindTooltip('Mi Ubicacion', {
+          permanent: true, direction: 'top', offset: [0, -30], className: 'etiqueta-camion'
+        });
+      }
+      this.map.setView(posActual, 14);
+      return;
+    }
+
+    console.log(`🟢 actualizarMapaConductor: ubicacion=(${this.miCamion.ubicacion.lat},${this.miCamion.ubicacion.lng}) destino=(${this.miCamion.destino?.lat},${this.miCamion.destino?.lng}) puntos_ruta=${this.miCamion.puntos_ruta?.length || 0}pts`);
+
     const posDestino = L.latLng(this.miCamion.destino.lat, this.miCamion.destino.lng);
 
     if (this.marker) {

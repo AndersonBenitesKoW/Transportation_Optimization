@@ -2,6 +2,7 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService, Viaje, Vehiculo, Desplazamiento } from '../../../services/api.service';
+import { MantenimientoService } from '../../../services/mantenimiento.service';
 import { IconComponent } from '../../../components/icon.component';
 import * as L from 'leaflet';
 
@@ -23,6 +24,7 @@ export class ViajesComponent implements OnInit {
   mapPin = 'map-pin'; plus = 'plus'; truck = 'truck';
 
   private apiService = inject(ApiService);
+  private mantenimientoService = inject(MantenimientoService);
   viajes: Viaje[] = []; vehiculos: Vehiculo[] = [];
   desplazamientos: Desplazamiento[] = [];
   cargando = false; error: string | null = null;
@@ -352,19 +354,63 @@ export class ViajesComponent implements OnInit {
   private actualizarPolylineRuta() {
     if (this.polylineRuta && this.mapModal) { this.mapModal.removeLayer(this.polylineRuta); this.polylineRuta = null; }
     if (!this.mapModal || !this.form.origen_lat || !this.form.origen_lng || !this.form.destino_lat || !this.form.destino_lng) return;
-    this.polylineRuta = L.polyline(
-      [[this.form.origen_lat, this.form.origen_lng], [this.form.destino_lat, this.form.destino_lng]],
-      { color: '#f97316', weight: 4, opacity: 0.8 }
-    ).addTo(this.mapModal);
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${this.form.origen_lng},${this.form.origen_lat};${this.form.destino_lng},${this.form.destino_lat}?overview=full&geometries=geojson`;
+    fetch(url)
+      .then(res => res.json())
+      .then((data: any) => {
+        if (this.polylineRuta && this.mapModal) { this.mapModal.removeLayer(this.polylineRuta); this.polylineRuta = null; }
+        if (!this.mapModal) return;
+
+        if (data.routes && data.routes.length > 0 && data.routes[0].geometry?.coordinates) {
+          const coords = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]] as L.LatLngTuple);
+          this.polylineRuta = L.polyline(coords, { color: '#f97316', weight: 4, opacity: 0.8 }).addTo(this.mapModal);
+        } else {
+          this.polylineRuta = L.polyline(
+            [[this.form.origen_lat, this.form.origen_lng], [this.form.destino_lat, this.form.destino_lng]],
+            { color: '#f97316', weight: 4, opacity: 0.8 }
+          ).addTo(this.mapModal);
+        }
+      })
+      .catch(() => {
+        if (this.polylineRuta && this.mapModal) { this.mapModal.removeLayer(this.polylineRuta); this.polylineRuta = null; }
+        if (!this.mapModal) return;
+        this.polylineRuta = L.polyline(
+          [[this.form.origen_lat, this.form.origen_lng], [this.form.destino_lat, this.form.destino_lng]],
+          { color: '#f97316', weight: 4, opacity: 0.8 }
+        ).addTo(this.mapModal);
+      });
   }
 
   private actualizarPolylineReposicion() {
     if (this.polylineReposicion && this.mapModal) { this.mapModal.removeLayer(this.polylineReposicion); this.polylineReposicion = null; }
     if (!this.mapModal || !this.form.reposicion_origen_lat || !this.form.reposicion_origen_lng || !this.form.origen_lat || !this.form.origen_lng) return;
-    this.polylineReposicion = L.polyline(
-      [[this.form.reposicion_origen_lat, this.form.reposicion_origen_lng], [this.form.origen_lat, this.form.origen_lng]],
-      { color: '#ef4444', weight: 4, opacity: 0.8, dashArray: '8 4' }
-    ).addTo(this.mapModal);
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${this.form.reposicion_origen_lng},${this.form.reposicion_origen_lat};${this.form.origen_lng},${this.form.origen_lat}?overview=full&geometries=geojson`;
+    fetch(url)
+      .then(res => res.json())
+      .then((data: any) => {
+        if (this.polylineReposicion && this.mapModal) { this.mapModal.removeLayer(this.polylineReposicion); this.polylineReposicion = null; }
+        if (!this.mapModal) return;
+
+        if (data.routes && data.routes.length > 0 && data.routes[0].geometry?.coordinates) {
+          const coords = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]] as L.LatLngTuple);
+          this.polylineReposicion = L.polyline(coords, { color: '#ef4444', weight: 4, opacity: 0.8, dashArray: '8 4' }).addTo(this.mapModal);
+        } else {
+          this.polylineReposicion = L.polyline(
+            [[this.form.reposicion_origen_lat, this.form.reposicion_origen_lng], [this.form.origen_lat, this.form.origen_lng]],
+            { color: '#ef4444', weight: 4, opacity: 0.8, dashArray: '8 4' }
+          ).addTo(this.mapModal);
+        }
+      })
+      .catch(() => {
+        if (this.polylineReposicion && this.mapModal) { this.mapModal.removeLayer(this.polylineReposicion); this.polylineReposicion = null; }
+        if (!this.mapModal) return;
+        this.polylineReposicion = L.polyline(
+          [[this.form.reposicion_origen_lat, this.form.reposicion_origen_lng], [this.form.origen_lat, this.form.origen_lng]],
+          { color: '#ef4444', weight: 4, opacity: 0.8, dashArray: '8 4' }
+        ).addTo(this.mapModal);
+      });
   }
 
   private sincronizarReposicion() {
@@ -467,8 +513,17 @@ export class ViajesComponent implements OnInit {
 
     if (this.form.km_fin > 0) {
       this.cargando = true;
+      const kmRecorridos = this.form.km_fin - this.form.km_inicio;
       this.apiService.finalizarViaje({ id_vehiculo: this.form.id_vehiculo, km_fin: this.form.km_fin }).subscribe({
-        next: () => { this.cargarDatos(); this.cerrarModal(); },
+        next: async () => {
+          try {
+            await this.mantenimientoService.registrarDesgasteYVerificarAlertas(this.form.id_vehiculo, kmRecorridos);
+          } catch (err) {
+            console.error('Error al registrar desgaste preventivo en Firestore:', err);
+          }
+          this.cargarDatos();
+          this.cerrarModal();
+        },
         error: (e) => { alert('Error: ' + e.message); this.cargando = false; }
       });
     } else {
