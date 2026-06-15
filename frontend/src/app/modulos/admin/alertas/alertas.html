@@ -69,10 +69,27 @@
         <span class="alerta-card-status"
               [class.alerta-card-status--pending]="a.estado === 'Pendiente'"
               [class.alerta-card-status--resolved]="a.estado === 'Resuelta'">{{ a.estado }}</span>
-        <button *ngIf="a.estado === 'Pendiente'" (click)="resolverAlerta(a)" class="alerta-card-resolve">
-          <lucide-icon [img]="circleCheck" class="w-3 h-3"></lucide-icon>
-          Resolver
-        </button>
+              
+        <!-- Alertas estándar -->
+        <ng-container *ngIf="!a.isMantenimiento && a.estado === 'Pendiente'">
+          <button (click)="resolverAlerta(a)" class="alerta-card-resolve">
+            <lucide-icon [img]="circleCheck" class="w-3 h-3"></lucide-icon>
+            Resolver
+          </button>
+        </ng-container>
+
+        <!-- Alertas de mantenimiento preventivo -->
+        <ng-container *ngIf="a.isMantenimiento && a.estado === 'Pendiente'">
+          <div class="alerta-card-actions" style="display: flex; gap: 8px;">
+            <button *ngIf="a.tipo_alerta === 'Revision'" (click)="marcarRevisado(a)" class="alerta-card-resolve alerta-card-resolve--warning">
+              🔧 Revisado
+            </button>
+            <button (click)="marcarReemplazado(a)" class="alerta-card-resolve alerta-card-resolve--danger">
+              🔄 Reemplazar
+            </button>
+          </div>
+        </ng-container>
+
         <span *ngIf="a.estado === 'Resuelta'" class="alerta-card-resolved-at">Resuelta: {{ a.fecha_resolucion | date:'short' }}</span>
       </div>
     </div>

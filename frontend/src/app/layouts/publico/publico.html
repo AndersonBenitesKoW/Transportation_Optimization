@@ -9,7 +9,7 @@
     <div class="publico-nav-links">
       <a routerLink="/home" class="publico-nav-link">Inicio</a>
       <a routerLink="/login" class="publico-nav-link">Iniciar Sesion</a>
-      <a routerLink="/register" class="publico-nav-cta">Registrarse</a>
+     <!-- <a routerLink="/register" class="publico-nav-cta">Registrarse</a> -->
       <button (click)="toggleTema()" class="publico-nav-theme"
               [attr.aria-label]="themeService.isDark() ? 'Modo claro' : 'Modo oscuro'">
         <lucide-icon [img]="themeService.isDark() ? sun : moon" class="w-4 h-4"></lucide-icon>
@@ -30,7 +30,7 @@
   <div *ngIf="menuAbierto" class="publico-nav-mobile animate-fadeInDown">
     <a routerLink="/home" (click)="cerrarMenu()" class="publico-nav-mobile-link">Inicio</a>
     <a routerLink="/login" (click)="cerrarMenu()" class="publico-nav-mobile-link">Iniciar Sesion</a>
-    <a routerLink="/register" (click)="cerrarMenu()" class="publico-nav-mobile-cta">Registrarse</a>
+<!--     <a routerLink="/register" (click)="cerrarMenu()" class="publico-nav-mobile-cta">Registrarse</a> -->
   </div>
 </nav>
 

@@ -69,6 +69,7 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
   private destMarkers: { [id: string]: L.Marker } = {};
   private routes: { [id: string]: L.Polyline } = {};
   private reposRoutes: Record<string, L.Polyline> = {};
+  private reposRoutesDetail: Record<string, L.Polyline> = {};
   private reposPuntos: Record<string, L.CircleMarker> = {};
   private pollSub1!: Subscription;
   private pollSub2!: Subscription;
@@ -231,27 +232,78 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
       const posDestino = L.latLng(camion.destino.lat, camion.destino.lng);
       if (this.markers[camion.id_camion]) { this.markers[camion.id_camion].setLatLng(posActual); }
       else { const m = L.marker(posActual, { icon: this.truckIcon }).addTo(this.map); m.bindTooltip(camion.id_camion, { permanent: true, direction: 'top', offset: [0, -30], className: 'etiqueta-camion' }); this.markers[camion.id_camion] = m; }
+      
       const color = this.routeColors[camion.id_camion] || this.dynamicColors[parseInt((camion.id_camion || '').replace(/\D/g, ''), 10) % this.dynamicColors.length];
-      const puntosRuta: L.LatLngTuple[] = camion.puntos_ruta?.length > 0
-        ? camion.puntos_ruta.map((p: any) => [p.lat, p.lng] as L.LatLngTuple)
-        : [[posActual.lat, posActual.lng], [posDestino.lat, posDestino.lng]] as L.LatLngTuple[];
-      if (this.routes[camion.id_camion]) { this.routes[camion.id_camion].setLatLngs(puntosRuta); }
-      else { this.routes[camion.id_camion] = L.polyline(puntosRuta, { color, opacity: 0.7, weight: 4 }).addTo(this.map); }
-
-      const nombreDestino = camion.destino?.nombre || camion.destino_viaje?.nombre || 'Destino';
-      if (this.destMarkers[camion.id_camion]) {
-        this.destMarkers[camion.id_camion].setLatLng(posDestino);
-        this.destMarkers[camion.id_camion].setTooltipContent(nombreDestino);
+      
+      // 1. Dibujar ruta de reposición detallada si la fase es 'reposicion' y hay puntos
+      if (camion.fase_viaje === 'reposicion' && camion.puntos_reposicion?.length > 0) {
+        const ptsRepos = camion.puntos_reposicion.map((p: any) => [p.lat, p.lng] as L.LatLngTuple);
+        if (this.reposRoutesDetail[camion.id_camion]) {
+          this.reposRoutesDetail[camion.id_camion].setLatLngs(ptsRepos);
+        } else {
+          this.reposRoutesDetail[camion.id_camion] = L.polyline(ptsRepos, {
+            color: '#ef4444',
+            opacity: 0.8,
+            weight: 3,
+            dashArray: '8 4'
+          }).addTo(this.map);
+        }
       } else {
-        const dm = L.marker(posDestino, { icon: this.destIcon }).addTo(this.map);
-        dm.bindTooltip(nombreDestino, { permanent: true, direction: 'top', offset: [0, -30], className: 'etiqueta-camion' });
-        this.destMarkers[camion.id_camion] = dm;
+        if (this.reposRoutesDetail[camion.id_camion]) {
+          this.map.removeLayer(this.reposRoutesDetail[camion.id_camion]);
+          delete this.reposRoutesDetail[camion.id_camion];
+        }
+      }
+
+      // 2. Dibujar ruta principal B -> C (si el viaje está activo o tiene puntos de ruta guardados)
+      const tienePuntos = camion.puntos_ruta?.length > 0;
+      if (tienePuntos || camion.viaje_activo) {
+        const puntosRuta: L.LatLngTuple[] = tienePuntos
+          ? camion.puntos_ruta.map((p: any) => [p.lat, p.lng] as L.LatLngTuple)
+          : [[posActual.lat, posActual.lng], [posDestino.lat, posDestino.lng]] as L.LatLngTuple[];
+        
+        const opacity = camion.fase_viaje === 'reposicion' ? 0.35 : 0.75;
+        if (this.routes[camion.id_camion]) {
+          this.routes[camion.id_camion].setLatLngs(puntosRuta);
+          this.routes[camion.id_camion].setStyle({ color, opacity, weight: 4 });
+        } else {
+          this.routes[camion.id_camion] = L.polyline(puntosRuta, { color, opacity, weight: 4 }).addTo(this.map);
+        }
+
+        const nombreDestino = camion.destino?.nombre || camion.destino_viaje?.nombre || 'Destino';
+        if (this.destMarkers[camion.id_camion]) {
+          this.destMarkers[camion.id_camion].setLatLng(posDestino);
+          this.destMarkers[camion.id_camion].setTooltipContent(nombreDestino);
+        } else {
+          const dm = L.marker(posDestino, { icon: this.destIcon }).addTo(this.map);
+          dm.bindTooltip(nombreDestino, { permanent: true, direction: 'top', offset: [0, -30], className: 'etiqueta-camion' });
+          this.destMarkers[camion.id_camion] = dm;
+        }
+      } else {
+        // Si no hay viaje activo ni puntos de ruta, limpiamos la ruta y el marcador de destino anterior
+        if (this.routes[camion.id_camion]) {
+          this.map.removeLayer(this.routes[camion.id_camion]);
+          delete this.routes[camion.id_camion];
+        }
+        if (this.destMarkers[camion.id_camion]) {
+          this.map.removeLayer(this.destMarkers[camion.id_camion]);
+          delete this.destMarkers[camion.id_camion];
+        }
       }
     });
     const currentIds = new Set(this.flotaOriginal.map((c: any) => c.id_camion));
     Object.keys(this.markers).forEach(id => { if (!currentIds.has(id)) { this.map.removeLayer(this.markers[id]); delete this.markers[id]; } });
     Object.keys(this.destMarkers).forEach(id => { if (!currentIds.has(id)) { this.map.removeLayer(this.destMarkers[id]); delete this.destMarkers[id]; } });
     Object.keys(this.routes).forEach(id => { if (!currentIds.has(id)) { this.map.removeLayer(this.routes[id]); delete this.routes[id]; } });
+    
+    // Limpiar también las reposiciones detalladas de camiones eliminados
+    Object.keys(this.reposRoutesDetail).forEach(id => {
+      if (!currentIds.has(id)) {
+        this.map.removeLayer(this.reposRoutesDetail[id]);
+        delete this.reposRoutesDetail[id];
+      }
+    });
+
     this.dibujarReposiciones();
   }
 
@@ -263,6 +315,9 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
 
     const activos = this.flotaOriginal.filter((c: any) => c.viaje_activo);
     for (const camion of activos) {
+      // Si el camión está en fase de reposición física activa, no dibujamos la línea recta
+      if (camion.fase_viaje === 'reposicion') continue;
+
       const desp = this.desplazamientos
         .filter(d => d.id_vehiculo === camion.id_camion)
         .sort((a: any, b: any) => new Date(b.fecha || 0).getTime() - new Date(a.fecha || 0).getTime())[0];
