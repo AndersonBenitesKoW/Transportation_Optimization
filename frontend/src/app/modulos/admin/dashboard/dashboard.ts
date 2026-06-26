@@ -71,6 +71,7 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
   private reposRoutes: Record<string, L.Polyline> = {};
   private reposRoutesDetail: Record<string, L.Polyline> = {};
   private reposPuntos: Record<string, L.CircleMarker> = {};
+  private reposDetailedCoordsCache: Record<string, L.LatLngTuple[]> = {};
   private pollSub1!: Subscription;
   private pollSub2!: Subscription;
   private pollDespSub!: Subscription;
@@ -309,11 +310,10 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
 
   dibujarReposiciones() {
     if (!this.map) return;
-    Object.values(this.reposRoutes).forEach(r => { if (this.map) this.map.removeLayer(r); });
-    Object.values(this.reposPuntos).forEach(p => { if (this.map) this.map.removeLayer(p); });
-    this.reposRoutes = {}; this.reposPuntos = {};
 
     const activos = this.flotaOriginal.filter((c: any) => c.viaje_activo);
+    const vidsWithRepos = new Set<string>();
+
     for (const camion of activos) {
       // Si el camión está en fase de reposición física activa, no dibujamos la línea recta
       if (camion.fase_viaje === 'reposicion') continue;
@@ -326,16 +326,88 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
       if (Math.abs(desp.origen_lat - desp.destino_lat) < 0.0001 && Math.abs(desp.origen_lng - desp.destino_lng) < 0.0001) continue;
 
       const key = camion.id_camion;
-      this.reposRoutes[key] = L.polyline(
-        [[desp.origen_lat, desp.origen_lng], [desp.destino_lat, desp.destino_lng]],
-        { color: '#ef4444', opacity: 0.7, weight: 3, dashArray: '8 4' }
-      ).addTo(this.map);
+      vidsWithRepos.add(key);
 
-      this.reposPuntos[key] = L.circleMarker(
-        [desp.origen_lat, desp.origen_lng],
-        { radius: 5, color: '#ef4444', fillColor: '#fff', fillOpacity: 1, weight: 2 }
-      ).addTo(this.map);
+      const cacheKey = `${desp.origen_lat.toFixed(4)},${desp.origen_lng.toFixed(4)}->${desp.destino_lat.toFixed(4)},${desp.destino_lng.toFixed(4)}`;
+
+      // 1. Dibujar o actualizar marcador circular de origen
+      const posOrigen = L.latLng(desp.origen_lat, desp.origen_lng);
+      if (this.reposPuntos[key]) {
+        this.reposPuntos[key].setLatLng(posOrigen);
+      } else {
+        this.reposPuntos[key] = L.circleMarker(
+          posOrigen,
+          { radius: 5, color: '#ef4444', fillColor: '#fff', fillOpacity: 1, weight: 2 }
+        ).addTo(this.map);
+      }
+
+      // 2. Dibujar o actualizar la ruta de reposición
+      if (this.reposDetailedCoordsCache[cacheKey]) {
+        // Usar los puntos detallados en caché
+        const coords = this.reposDetailedCoordsCache[cacheKey];
+        if (this.reposRoutes[key]) {
+          this.reposRoutes[key].setLatLngs(coords);
+        } else {
+          this.reposRoutes[key] = L.polyline(coords, {
+            color: '#ef4444', opacity: 0.7, weight: 3, dashArray: '8 4'
+          }).addTo(this.map);
+        }
+      } else {
+        // No está en caché, dibujar línea recta temporalmente y pedir a OSRM
+        const tempCoords: L.LatLngTuple[] = [
+          [desp.origen_lat, desp.origen_lng],
+          [desp.destino_lat, desp.destino_lng]
+        ];
+        
+        if (this.reposRoutes[key]) {
+          this.reposRoutes[key].setLatLngs(tempCoords);
+        } else {
+          this.reposRoutes[key] = L.polyline(tempCoords, {
+            color: '#ef4444', opacity: 0.7, weight: 3, dashArray: '8 4'
+          }).addTo(this.map);
+        }
+
+        // Consultar OSRM
+        const url = `https://router.project-osrm.org/route/v1/driving/${desp.origen_lng},${desp.origen_lat};${desp.destino_lng},${desp.destino_lat}?overview=full&geometries=geojson`;
+        fetch(url)
+          .then(res => res.json())
+          .then((data: any) => {
+            if (data.routes && data.routes.length > 0 && data.routes[0].geometry?.coordinates) {
+              const coords = data.routes[0].geometry.coordinates.map((c: any) => [c[1], c[0]] as L.LatLngTuple);
+              this.reposDetailedCoordsCache[cacheKey] = coords;
+              // Si la ruta sigue siendo para el mismo camion y no ha cambiado el desplazamiento, actualizar
+              if (this.reposRoutes[key] && vidsWithRepos.has(key)) {
+                this.reposRoutes[key].setLatLngs(coords);
+              }
+            } else {
+              // Cache temporal para evitar reintentar
+              this.reposDetailedCoordsCache[cacheKey] = tempCoords;
+            }
+          })
+          .catch(() => {
+            this.reposDetailedCoordsCache[cacheKey] = tempCoords;
+          });
+      }
     }
+
+    // Limpiar camiones que ya no tienen reposición activa
+    Object.keys(this.reposRoutes).forEach(key => {
+      if (!vidsWithRepos.has(key)) {
+        if (this.map) {
+          this.map.removeLayer(this.reposRoutes[key]);
+        }
+        delete this.reposRoutes[key];
+      }
+    });
+
+    Object.keys(this.reposPuntos).forEach(key => {
+      if (!vidsWithRepos.has(key)) {
+        if (this.map) {
+          this.map.removeLayer(this.reposPuntos[key]);
+        }
+        delete this.reposPuntos[key];
+      }
+    });
   }
 
   cerrarAlerta(id: number) { this.alertasActivas = this.alertasActivas.filter((a: any) => a.id !== id); }
