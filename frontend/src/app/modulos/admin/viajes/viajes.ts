@@ -547,7 +547,12 @@ export class ViajesComponent implements OnInit {
       }
       this.apiService.iniciarViaje(data).subscribe({
         next: () => { this.cargarDatos(); this.cerrarModal(); },
-        error: (e) => { alert('Error del Servidor: ' + e.message); this.cargando = false; }
+        error: (e) => {
+          const detalle = e.error?.detail || e.message || 'Error desconocido';
+          console.error('[ViajesComponent.guardar] Error al iniciar viaje:', detalle, e);
+          alert('Error al iniciar viaje: ' + detalle);
+          this.cargando = false;
+        }
       });
     }
   }

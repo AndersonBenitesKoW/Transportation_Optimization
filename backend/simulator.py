@@ -254,7 +254,7 @@ def cargar_camiones_dinamicos(camiones_actuales):
         print(f"⚠️ Error cargando camiones dinámicos: {e}")
 
 
-def crear_alerta_simulador(vid, componente, tipo, km_acumulado, tiempo_vida, limite_revision):
+def crear_alerta_simulador(vid, componente, tipo, km_desde_reparacion, tiempo_vida, umbral_alerta):
     try:
         alerts_ref = db.collection('alertas')
         query = alerts_ref.where('id_vehiculo', '==', vid)\
@@ -263,8 +263,8 @@ def crear_alerta_simulador(vid, componente, tipo, km_acumulado, tiempo_vida, lim
                           .where('estado', '==', 'Pendiente')
         docs = list(query.stream())
         if not docs:
-            msg = f"⚠️ Cambio obligatorio: Componente \"{componente}\" del vehículo {vid} ha superado su vida útil ({km_acumulado:.1f} / {tiempo_vida} km)." if tipo == 'Reemplazo' \
-                  else f"🔧 Revisión preventiva: Componente \"{componente}\" del vehículo {vid} requiere inspección ({km_acumulado:.1f} km totales)."
+            msg = f"⚠️ Cambio obligatorio: Componente \"{componente}\" del vehículo {vid} ha agotado su vida util (tiempo de vida restante: {tiempo_vida:.1f} km)." if tipo == 'Reemplazo' \
+                  else f"🔧 Revision preventiva: Componente \"{componente}\" del vehículo {vid} alcanzó el umbral de alerta ({km_desde_reparacion:.1f} / {umbral_alerta:.1f} km desde ultima reparacion). Vida restante: {tiempo_vida:.1f} km."
             priority = 'Critica' if tipo == 'Reemplazo' else 'Alta'
             alerts_ref.add({
                 'id_vehiculo': vid,
@@ -274,9 +274,9 @@ def crear_alerta_simulador(vid, componente, tipo, km_acumulado, tiempo_vida, lim
                 'prioridad': priority,
                 'mensaje': msg,
                 'fecha_creacion': datetime.now().isoformat(),
-                'kilometraje_acumulado': km_acumulado,
-                'tiempo_vida': tiempo_vida,
-                'limite_revision': limite_revision
+                'km_desde_reparacion': round(km_desde_reparacion, 2),
+                'kilometraje_reparacion': round(umbral_alerta, 2),
+                'tiempo_vida': tiempo_vida
             })
             print(f"🚨 [Simulador] Alerta {tipo} creada para {vid} - {componente}")
     except Exception as e:
@@ -291,23 +291,29 @@ def actualizar_componentes_kilometraje(vid, distancia_km):
             nombre = comp_doc.id
             comp_data = comp_doc.to_dict()
             if isinstance(comp_data, dict):
-                km_acumulado = round(comp_data.get('kilometraje_acumulado', 0) + distancia_km, 2)
-                km_desde_revision = round(comp_data.get('kilometraje_desde_revision', 0) + distancia_km, 2)
-                tiempo_vida = comp_data.get('tiempo_vida', 0)
-                limite_revision = comp_data.get('limite_revision', 2.0) # default 2.0
+                # kilometraje_reparacion = umbral FIJO de alerta, nunca se modifica
+                umbral_alerta = comp_data.get('kilometraje_reparacion', 0)
+
+                # km recorridos desde la ultima reparacion (se reinicia al reparar)
+                km_desde_reparacion = round(comp_data.get('km_desde_reparacion', 0) + distancia_km, 2)
+
+                # tiempo_vida disminuye con cada km recorrido
+                tiempo_vida_actual = comp_data.get('tiempo_vida', 0)
+                nuevo_tiempo_vida = round(max(0.0, tiempo_vida_actual - distancia_km), 2)
 
                 comp_ref.document(nombre).update({
-                    'kilometraje_acumulado': km_acumulado,
-                    'kilometraje_desde_revision': km_desde_revision
+                    'km_desde_reparacion': km_desde_reparacion,
+                    'tiempo_vida': nuevo_tiempo_vida
+                    # kilometraje_reparacion NO se toca: es metrica fija del admin
                 })
 
-                # Alerta 1: Revisión Preventiva
-                if limite_revision > 0 and km_desde_revision >= limite_revision:
-                    crear_alerta_simulador(vid, nombre, 'Revision', km_acumulado, tiempo_vida, limite_revision)
+                # Alerta: se recorrieron los km del umbral desde la ultima reparacion
+                if umbral_alerta > 0 and km_desde_reparacion >= umbral_alerta:
+                    crear_alerta_simulador(vid, nombre, 'Revision', km_desde_reparacion, nuevo_tiempo_vida, umbral_alerta)
 
-                # Alerta 2: Cambio de Pieza
-                if tiempo_vida > 0 and km_acumulado >= tiempo_vida:
-                    crear_alerta_simulador(vid, nombre, 'Reemplazo', km_acumulado, tiempo_vida, limite_revision)
+                # Critico: vida util agotada
+                if nuevo_tiempo_vida <= 0:
+                    crear_alerta_simulador(vid, nombre, 'Reemplazo', km_desde_reparacion, nuevo_tiempo_vida, umbral_alerta)
     except Exception as e:
         print(f"⚠️ Error actualizando componentes en simulador: {e}")
 

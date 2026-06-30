@@ -14,6 +14,7 @@ import { IconComponent } from '../../../components/icon.component';
 })
 export class AlertasComponent implements OnInit, OnDestroy {
   bell = 'bell'; alertTriangle = 'alert-triangle'; refreshCw = 'refresh-cw'; circleCheck = 'circle-check'; mapPin = 'map-pin';
+  min = Math.min;
 
   private apiService = inject(ApiService);
   private mantenimientoService = inject(MantenimientoService);
@@ -48,7 +49,10 @@ export class AlertasComponent implements OnInit, OnDestroy {
           tipo: 'Mantenimiento Preventivo',
           isMantenimiento: true,
           componente: a.componente,
-          tipo_alerta: a.tipo_alerta
+          tipo_alerta: a.tipo_alerta,
+          km_desde_reparacion: a.km_desde_reparacion ?? 0,
+          tiempo_vida: a.tiempo_vida ?? 0,
+          kilometraje_reparacion: a.kilometraje_reparacion ?? 0
         }));
         this.combinarAlertas();
       },
@@ -68,7 +72,12 @@ export class AlertasComponent implements OnInit, OnDestroy {
     this.error = null;
     this.apiService.getAlertas().subscribe({
       next: (r: any) => {
-        this.alertasEstandar = r.data || [];
+        this.alertasEstandar = (r.data || []).map((a: any) => ({
+          ...a,
+          titulo: a.titulo || a.tipo || 'Alerta del Sistema',
+          descripcion: a.descripcion || a.mensaje || '',
+          isMantenimiento: false
+        }));
         this.combinarAlertas();
         this.cargando = false;
       },

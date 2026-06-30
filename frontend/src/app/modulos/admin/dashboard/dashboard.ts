@@ -55,7 +55,7 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
   incidentes: any[] = []; alertasActivas: any[] = [];
   alertasMantenimiento: any[] = [];
   desplazamientos: any[] = [];
-  usuarioActual: any = null; kpis: any = null;
+  usuarioActual: any = null; kpis: any = null; rendimientoCombustible: any = null;
   conPeligro: number = 0; conAnomalia: number = 0; cargando: boolean = true;
   errorFlota: string | null = null;
 
@@ -103,6 +103,7 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
     this.obtenerKPIs();
     this.cargarVehiculosCRUD();
     this.cargarAlertasMantenimiento();
+    this.cargarRendimientoCombustible();
 
     this.pollSub1 = timer(0, 5000).pipe(
       exhaustMap(() => this.flotaService.getFlota())
@@ -421,5 +422,16 @@ export class DashboardAdminComponent implements OnInit, OnDestroy {
       next: (r: any) => { this.alertasMantenimiento = r.data || []; },
       error: (e: any) => console.error('Error alertas mantenimiento:', e)
     });
+  }
+
+  cargarRendimientoCombustible() {
+    try {
+      this.apiService.getRendimientoCombustible().subscribe({
+        next: (r: any) => { this.rendimientoCombustible = r.data; },
+        error: (e: any) => console.error('[DashboardAdminComponent.cargarRendimientoCombustible] Error:', e)
+      });
+    } catch (e) {
+      console.error('[DashboardAdminComponent.cargarRendimientoCombustible] Error inesperado:', e);
+    }
   }
 }

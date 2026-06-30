@@ -48,7 +48,7 @@
              [style.width.%]="min(alerta.porcentaje_desgaste, 100)"
              [style.backgroundColor]="alerta.porcentaje_desgaste >= 100 ? '#EF4444' : '#F59E0B'"></div>
       </div>
-      <p class="conductor-alerta-mant-detail">{{ alerta.kilometraje_acumulado | number:'1.0-0' }} / {{ alerta.tiempo_vida_km | number:'1.0-0' }} km ({{ alerta.porcentaje_desgaste }}%)</p>
+      <p class="conductor-alerta-mant-detail">{{ alerta.km_desde_reparacion | number:'1.0-0' }} / {{ alerta.tiempo_vida_km | number:'1.0-0' }} km ({{ alerta.porcentaje_desgaste }}%)</p>
       <p class="conductor-alerta-mant-msg">{{ alerta.mensaje }}</p>
     </div>
   </div>
@@ -141,28 +141,11 @@
           Control de Viaje
         </h3>
 
-        <div *ngIf="!miCamion.viaje_activo && !mostrandoFormViaje" class="conductor-card conductor-card--viaje">
+        <div *ngIf="!miCamion.viaje_activo" class="conductor-card conductor-card--viaje">
           <div class="conductor-card-body" style="padding:16px; justify-content:center">
-            <button (click)="iniciarViajeConductor()" class="conductor-btn conductor-btn--primary"
-                    style="width:100%" [disabled]="sinTelemetria">
-              {{ sinTelemetria ? 'Sin telemetria - espere al simulador' : 'Iniciar Viaje' }}
-            </button>
-          </div>
-        </div>
-
-        <div *ngIf="!miCamion.viaje_activo && mostrandoFormViaje" class="conductor-card conductor-card--viaje">
-          <div class="conductor-card-body" style="padding:16px; flex-direction:column; gap:12px">
-            <div style="display:flex; flex-direction:column; gap:4px">
-              <label style="font-size:0.75rem;font-weight:700;color:var(--text-primary)">Kilometraje Inicial (odometro automatico)</label>
-              <input type="number" readonly [ngModel]="miCamion.kilometraje" min="0" step="0.1"
-                     style="padding:8px 12px;font-size:0.875rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;color:var(--text-primary);outline:none;width:100%;box-sizing:border-box;opacity:0.7" />
-            </div>
-            <div style="display:flex;gap:8px">
-              <button (click)="mostrandoFormViaje = false" class="conductor-btn conductor-btn--ghost"
-                      style="flex:1" [disabled]="viajeCargando">Cancelar</button>
-              <button (click)="confirmarIniciarViaje()" class="conductor-btn conductor-btn--primary"
-                      style="flex:1" [disabled]="viajeCargando || !miCamion?.kilometraje || miCamion.kilometraje <= 0">{{ viajeCargando ? '...' : 'Confirmar Inicio' }}</button>
-            </div>
+            <p style="font-size:0.875rem;color:var(--text-secondary);text-align:center;margin:0">
+              Sin viaje activo. El administrador asignara tu proxima ruta.
+            </p>
           </div>
         </div>
 
@@ -180,13 +163,13 @@
               <span style="font-weight:700;font-size:0.9rem;color:var(--color-orange-500)">{{ (miCamion.kilometraje - miCamion.km_inicio_viaje) | number:'1.1-1' }} km</span>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px">
-              <label style="font-size:0.75rem;font-weight:700;color:var(--text-primary)">Kilometraje Final (odometro automatico)</label>
+              <label style="font-size:0.75rem;font-weight:700;color:var(--text-primary)">Kilometraje actual (odometro)</label>
               <input type="number" readonly [ngModel]="miCamion.kilometraje" min="0" step="0.1"
                      style="padding:8px 12px;font-size:0.875rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;color:var(--text-primary);outline:none;width:100%;box-sizing:border-box;opacity:0.7" />
             </div>
-            <button (click)="confirmarFinalizarViaje()" class="conductor-btn conductor-btn--orange"
-                    style="width:100%" [disabled]="viajeCargando || !miCamion?.kilometraje || miCamion.kilometraje <= (miCamion.km_inicio_viaje || 0)">
-              {{ viajeCargando ? 'Finalizando...' : 'Finalizar Viaje' }}
+            <button (click)="abrirModalEmergencia()" class="conductor-btn conductor-btn--danger"
+                    style="width:100%" [disabled]="viajeCargando">
+              &#9888; Terminar Viaje de Emergencia
             </button>
           </div>
         </div>
@@ -256,6 +239,43 @@
             [class.conductor-chat-fab--pulse]="!chatAbierto">
       <lucide-icon [img]="chatAbierto ? x : messageCircle" class="w-6 h-6"></lucide-icon>
     </button>
+  </div>
+
+  <!-- MODAL EMERGENCIA -->
+  <div *ngIf="modalEmergencia" class="conductor-modal-overlay" (click)="cancelarEmergencia()">
+    <div class="conductor-modal conductor-modal--emergencia" (click)="$event.stopPropagation()">
+      <div class="conductor-modal-body">
+        <div class="conductor-modal-icon conductor-modal-icon--danger">
+          <lucide-icon [img]="alertTriangle" class="w-7 h-7"></lucide-icon>
+        </div>
+        <h3 class="conductor-modal-title">Terminar Viaje de Emergencia</h3>
+        <p class="conductor-modal-desc">
+          Esta accion finalizara el viaje inmediatamente y notificara al administrador y al resto de conductores.
+          Confirma tu identidad ingresando tu correo registrado.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:8px;width:100%;margin-top:8px">
+          <label style="font-size:0.75rem;font-weight:700;color:var(--text-primary);text-align:left">Tu correo electronico *</label>
+          <input type="email" [(ngModel)]="emailVerificacion" placeholder="tucorreo@gmail.com"
+                 style="padding:10px 12px;font-size:0.875rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;color:var(--text-primary);outline:none;width:100%;box-sizing:border-box" />
+          <label style="font-size:0.75rem;font-weight:700;color:var(--text-primary);text-align:left">Motivo de la emergencia (opcional)</label>
+          <input type="text" [(ngModel)]="motivoEmergencia" placeholder="Ej: Accidente, problemas mecanicos..."
+                 style="padding:10px 12px;font-size:0.875rem;background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:8px;color:var(--text-primary);outline:none;width:100%;box-sizing:border-box" />
+          <p *ngIf="emailError" style="font-size:0.8rem;color:#ef4444;margin:0;text-align:left">{{ emailError }}</p>
+        </div>
+        <div class="conductor-modal-actions" style="margin-top:16px">
+          <button (click)="cancelarEmergencia()" class="conductor-btn conductor-btn--ghost" [disabled]="viajeCargando">
+            Cancelar
+          </button>
+          <button (click)="ejecutarFinalizarEmergencia()" class="conductor-btn conductor-btn--danger" [disabled]="viajeCargando || !emailVerificacion.trim()">
+            <span *ngIf="!viajeCargando">Confirmar Emergencia</span>
+            <span *ngIf="viajeCargando" class="conductor-btn-loading">
+              <span class="conductor-spinner"></span>
+              Procesando...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL LOGOUT -->

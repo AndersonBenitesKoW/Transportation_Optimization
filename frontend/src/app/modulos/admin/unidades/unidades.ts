@@ -51,6 +51,67 @@ export class UnidadesComponent implements OnInit {
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
+  generarSiguienteId(): string {
+    try {
+      if (this.unidades.length === 0) return '001';
+      const nums = this.unidades.map(u => {
+        const parte = u.id_vehiculo.startsWith(this.PREFIJO_CAMION)
+          ? u.id_vehiculo.slice(this.PREFIJO_CAMION.length)
+          : u.id_vehiculo;
+        const n = parseInt(parte, 10);
+        return isNaN(n) ? 0 : n;
+      });
+      return (Math.max(...nums) + 1).toString().padStart(3, '0');
+    } catch (e) {
+      console.error('[UnidadesComponent.generarSiguienteId] Error al generar el siguiente ID:', e);
+      return '001';
+    }
+  }
+
+  bloquearE(e: KeyboardEvent): void {
+    try {
+      if (['e', 'E', '+', '-'].includes(e.key)) e.preventDefault();
+    } catch (err) {
+      console.error('[UnidadesComponent.bloquearE] Error al filtrar tecla:', err);
+    }
+  }
+
+  kmRecorridosDesdeReparacion(comp: string): number {
+    try {
+      const c = this.componentes[comp];
+      if (!c) return 0;
+      return c.km_desde_reparacion ?? 0;
+    } catch (e) {
+      console.error('[UnidadesComponent.kmRecorridosDesdeReparacion] Error al obtener km recorridos:', e);
+      return 0;
+    }
+  }
+
+  tiempoVidaRestante(comp: string): number {
+    try {
+      const c = this.componentes[comp];
+      if (!c) return 0;
+      return Math.max(0, c.tiempo_vida);
+    } catch (e) {
+      console.error('[UnidadesComponent.tiempoVidaRestante] Error al obtener vida restante:', e);
+      return 0;
+    }
+  }
+
+  getEstadoComponente(comp: string): 'critico' | 'alerta' | 'normal' {
+    try {
+      const c = this.componentes[comp];
+      if (!c) return 'normal';
+      if (c.tiempo_vida <= 0) return 'critico';
+      const kmRecorridos = this.kmRecorridosDesdeReparacion(comp);
+      if (c.kilometraje_reparacion > 0 && kmRecorridos >= c.kilometraje_reparacion) return 'alerta';
+      return 'normal';
+    } catch (e) {
+      console.error('[UnidadesComponent.getEstadoComponente] Error al evaluar estado del componente:', e);
+      return 'normal';
+    }
+  }
+
   ngOnInit() { this.cargarDatos(); }
 
   cargarDatos() {
@@ -76,7 +137,7 @@ export class UnidadesComponent implements OnInit {
   resetComponentes() {
     this.componentes = {};
     for (const c of this.nombresComponentes) {
-      this.componentes[c] = { kilometraje_acumulado: 0, tiempo_vida: 0, ultima_reparacion: undefined, proxima_reparacion: undefined };
+      this.componentes[c] = { kilometraje_reparacion: 0, tiempo_vida: 0, km_en_ultima_reparacion: 0, ultima_reparacion: undefined, proxima_reparacion: undefined };
     }
   }
 
@@ -85,7 +146,7 @@ export class UnidadesComponent implements OnInit {
     this.nombresComponentes = [...this.NOMBRES_COMPONENTES_DEFAULT];
     this.nombresComponentesOriginales = [];
     this.componentesEliminados = [];
-    this.idVehiculoNumero = '';
+    this.idVehiculoNumero = this.generarSiguienteId();
     this.form = { id_vehiculo: '', placa: '', marca: '', modelo: '', anio: 2024, capacidad_tanque_L: 400, capacidad_carga_ton: 20, kilometraje_actual: 0, edad_motor_meses: 0, estado: 'Disponible', conductor_asignado: '' };
     this.resetComponentes();
     this.modalAbierto = true;
@@ -123,8 +184,10 @@ export class UnidadesComponent implements OnInit {
           for (const comp of this.nombresComponentes) {
             if (data[comp]) {
               this.componentes[comp] = {
-                kilometraje_acumulado: data[comp].kilometraje_acumulado ?? 0,
+                kilometraje_reparacion: data[comp].kilometraje_reparacion ?? 0,
                 tiempo_vida: data[comp].tiempo_vida ?? 0,
+                km_en_ultima_reparacion: data[comp].km_en_ultima_reparacion ?? 0,
+                km_desde_reparacion: data[comp].km_desde_reparacion ?? 0,
                 ultima_reparacion: data[comp].ultima_reparacion ? String(data[comp].ultima_reparacion).split('T')[0] : undefined,
                 proxima_reparacion: data[comp].proxima_reparacion ? String(data[comp].proxima_reparacion).split('T')[0] : undefined
               };
@@ -152,7 +215,7 @@ export class UnidadesComponent implements OnInit {
     const nombre = this.nombreNuevoComponente.trim().toLowerCase();
     if (!nombre || this.nombresComponentes.includes(nombre)) { this.mostrandoInputNuevo = false; return; }
     this.nombresComponentes.push(nombre);
-    this.componentes[nombre] = { kilometraje_acumulado: 0, tiempo_vida: 0, ultima_reparacion: undefined, proxima_reparacion: undefined };
+    this.componentes[nombre] = { kilometraje_reparacion: 0, tiempo_vida: 0, km_en_ultima_reparacion: 0, ultima_reparacion: undefined, proxima_reparacion: undefined };
     this.tabActiva = nombre;
     this.nombreNuevoComponente = '';
     this.mostrandoInputNuevo = false;
@@ -200,8 +263,9 @@ export class UnidadesComponent implements OnInit {
       for (const comp of this.nombresComponentes) {
         const c = this.componentes[comp];
         compsPayload[comp] = {
-          kilometraje_acumulado: c?.kilometraje_acumulado ?? 0,
+          kilometraje_reparacion: c?.kilometraje_reparacion ?? 0,
           tiempo_vida: c?.tiempo_vida ?? 0,
+          km_en_ultima_reparacion: c?.km_en_ultima_reparacion ?? 0,
           ultima_reparacion: c?.ultima_reparacion || undefined,
           proxima_reparacion: c?.proxima_reparacion || undefined
         };

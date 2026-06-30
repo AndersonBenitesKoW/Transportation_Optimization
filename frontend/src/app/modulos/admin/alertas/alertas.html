@@ -44,20 +44,76 @@
          [class.alerta-card--pending]="a.estado === 'Pendiente'"
          [class.alerta-card--resolved]="a.estado === 'Resuelta'">
 
+      <!-- CABECERA -->
       <div class="alerta-card-top">
         <span class="alerta-card-icon">{{ getTipoIcon(a.tipo) }}</span>
         <div class="alerta-card-info">
           <h3 class="alerta-card-title">{{ a.titulo }}</h3>
-          <p class="alerta-card-vehicle">{{ a.id_vehiculo }}</p>
+          <p class="alerta-card-vehicle">
+            {{ a.id_vehiculo }}
+            <span *ngIf="a.componente" class="alerta-card-comp-tag">· {{ a.componente | titlecase }}</span>
+          </p>
         </div>
         <span class="alerta-card-priority" [ngClass]="getPrioridadClass(a.prioridad)">{{ a.prioridad }}</span>
       </div>
 
+      <!-- MOTIVO: métricas de mantenimiento -->
+      <div *ngIf="a.isMantenimiento" class="alerta-motivo">
+        <p class="alerta-motivo-label">Motivo</p>
+
+        <div class="alerta-motivo-row">
+          <span class="alerta-motivo-key">Componente</span>
+          <span class="alerta-motivo-val">{{ a.componente | titlecase }}</span>
+        </div>
+
+        <div class="alerta-motivo-row" *ngIf="a.tipo_alerta === 'Revision'">
+          <span class="alerta-motivo-key">Km recorridos / Umbral</span>
+          <span class="alerta-motivo-val alerta-motivo-val--warn">
+            {{ a.km_desde_reparacion | number:'1.0-1' }} / {{ a.kilometraje_reparacion | number:'1.0-0' }} km
+          </span>
+        </div>
+
+        <div class="alerta-motivo-bar" *ngIf="a.tipo_alerta === 'Revision' && a.kilometraje_reparacion > 0">
+          <div class="alerta-motivo-bar-fill"
+               [style.width.%]="min((a.km_desde_reparacion / a.kilometraje_reparacion) * 100, 100)"
+               [style.backgroundColor]="a.prioridad === 'Critica' ? 'var(--color-danger)' : '#f59e0b'">
+          </div>
+        </div>
+
+        <div class="alerta-motivo-row">
+          <span class="alerta-motivo-key">Vida util restante</span>
+          <span class="alerta-motivo-val"
+                [class.alerta-motivo-val--danger]="a.tiempo_vida <= 0"
+                [class.alerta-motivo-val--warn]="a.tiempo_vida > 0 && a.tiempo_vida <= a.kilometraje_reparacion">
+            {{ a.tiempo_vida | number:'1.0-1' }} km
+          </span>
+        </div>
+      </div>
+
+      <!-- MOTIVO: alertas estándar del sistema -->
+      <div *ngIf="!a.isMantenimiento && (a.tipo || a.conductor_asignado)" class="alerta-motivo">
+        <p class="alerta-motivo-label">Detalle</p>
+        <div *ngIf="a.tipo" class="alerta-motivo-row">
+          <span class="alerta-motivo-key">Tipo</span>
+          <span class="alerta-motivo-val">{{ a.tipo }}</span>
+        </div>
+        <div *ngIf="a.conductor_asignado" class="alerta-motivo-row">
+          <span class="alerta-motivo-key">Conductor</span>
+          <span class="alerta-motivo-val">{{ a.conductor_asignado }}</span>
+        </div>
+        <div *ngIf="a.porcentaje_desgaste" class="alerta-motivo-row">
+          <span class="alerta-motivo-key">Desgaste</span>
+          <span class="alerta-motivo-val alerta-motivo-val--warn">{{ a.porcentaje_desgaste }}%</span>
+        </div>
+      </div>
+
+      <!-- MENSAJE COMPLETO -->
       <p class="alerta-card-desc">{{ a.descripcion }}</p>
 
+      <!-- META -->
       <div class="alerta-card-meta">
-        <span>&#128197; {{ a.fecha_creacion | date:'short' }}</span>
-        <span *ngIf="a.fecha_limite">&#9200; Limite: {{ a.fecha_limite | date:'short' }}</span>
+        <span>&#128197; {{ a.fecha_creacion | date:'dd/MM/yyyy HH:mm' }}</span>
+        <span *ngIf="a.fecha_limite">&#9200; Limite: {{ a.fecha_limite | date:'dd/MM/yyyy HH:mm' }}</span>
       </div>
 
       <div *ngIf="a.ubicacion" class="alerta-card-location">
@@ -65,12 +121,12 @@
         Lat: {{ a.ubicacion.lat | number:'1.4-4' }}, Lng: {{ a.ubicacion.lng | number:'1.4-4' }}
       </div>
 
+      <!-- FOOTER CON ACCIONES -->
       <div class="alerta-card-footer">
         <span class="alerta-card-status"
               [class.alerta-card-status--pending]="a.estado === 'Pendiente'"
               [class.alerta-card-status--resolved]="a.estado === 'Resuelta'">{{ a.estado }}</span>
-              
-        <!-- Alertas estándar -->
+
         <ng-container *ngIf="!a.isMantenimiento && a.estado === 'Pendiente'">
           <button (click)="resolverAlerta(a)" class="alerta-card-resolve">
             <lucide-icon [img]="circleCheck" class="w-3 h-3"></lucide-icon>
@@ -78,9 +134,8 @@
           </button>
         </ng-container>
 
-        <!-- Alertas de mantenimiento preventivo -->
         <ng-container *ngIf="a.isMantenimiento && a.estado === 'Pendiente'">
-          <div class="alerta-card-actions" style="display: flex; gap: 8px;">
+          <div class="alerta-card-actions">
             <button *ngIf="a.tipo_alerta === 'Revision'" (click)="marcarRevisado(a)" class="alerta-card-resolve alerta-card-resolve--warning">
               🔧 Revisado
             </button>
@@ -90,7 +145,9 @@
           </div>
         </ng-container>
 
-        <span *ngIf="a.estado === 'Resuelta'" class="alerta-card-resolved-at">Resuelta: {{ a.fecha_resolucion | date:'short' }}</span>
+        <span *ngIf="a.estado === 'Resuelta'" class="alerta-card-resolved-at">
+          Resuelta: {{ a.fecha_resolucion | date:'dd/MM/yyyy HH:mm' }}
+        </span>
       </div>
     </div>
 

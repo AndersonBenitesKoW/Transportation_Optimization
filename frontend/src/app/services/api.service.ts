@@ -23,8 +23,10 @@ export interface Vehiculo {
 }
 
 export interface Componente {
-  kilometraje_acumulado: number;
+  kilometraje_reparacion: number;
   tiempo_vida: number;
+  km_en_ultima_reparacion?: number;
+  km_desde_reparacion?: number;
   ultima_reparacion?: string;
   proxima_reparacion?: string;
 }
@@ -248,6 +250,10 @@ export class ApiService {
     return this.http.post<ApiResponse<any>>(`${this.apiUrl}/api/viajes/finalizar`, data);
   }
 
+  registrarEmergencia(data: { id_vehiculo: string; email_conductor: string; motivo?: string }): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/api/alertas/emergencia`, data);
+  }
+
   // ============================================================================
   // DESPLAZAMIENTOS (REPOSICION)
   // ============================================================================
@@ -257,6 +263,14 @@ export class ApiService {
       ? `${this.apiUrl}/api/desplazamientos?id_vehiculo=${idVehiculo}`
       : `${this.apiUrl}/api/desplazamientos`;
     return this.http.get<ApiResponse<Desplazamiento[]>>(url);
+  }
+
+  // ============================================================================
+  // RENDIMIENTO COMBUSTIBLE
+  // ============================================================================
+
+  getRendimientoCombustible(): Observable<ApiResponse<any>> {
+    return this.http.get<ApiResponse<any>>(`${this.apiUrl}/api/rendimiento-combustible`);
   }
 
   // ============================================================================

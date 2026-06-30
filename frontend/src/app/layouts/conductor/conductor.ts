@@ -52,8 +52,11 @@ export class ConductorComponent implements OnInit, OnDestroy {
   private router = inject(Router);
   readonly themeService = inject(ThemeService);
 
-  mostrandoFormViaje: boolean = false;
   viajeCargando: boolean = false;
+  modalEmergencia: boolean = false;
+  emailVerificacion: string = '';
+  emailError: string = '';
+  motivoEmergencia: string = '';
 
   mensajeNuevo: string = '';
   historial: { texto: string, soyYo: boolean }[] = [];
@@ -127,12 +130,13 @@ export class ConductorComponent implements OnInit, OnDestroy {
       this.alertsSub = this.mantenimientoService.getAlertasVehiculoRealtime(this.usuarioActual.ref).subscribe({
         next: (list) => {
           this.alertasMantenimiento = list.map(a => {
-            const pct = a.tiempo_vida > 0 ? (a.kilometraje_acumulado / a.tiempo_vida) * 100 : 0;
+            const umbral = a.kilometraje_reparacion ?? 0;
+            const pct = umbral > 0 ? (a.km_desde_reparacion / umbral) * 100 : 0;
             return {
               componente: a.componente,
               gravedad: a.tipo_alerta === 'Reemplazo' ? 'critico' : 'advertencia',
               porcentaje_desgaste: Math.min(Math.round(pct), 100),
-              kilometraje_acumulado: a.kilometraje_acumulado,
+              km_desde_reparacion: a.km_desde_reparacion,
               tiempo_vida_km: a.tiempo_vida,
               mensaje: a.mensaje
             };
@@ -225,38 +229,60 @@ export class ConductorComponent implements OnInit, OnDestroy {
     });
   }
 
-  iniciarViajeConductor() {
-    this.mostrandoFormViaje = true;
+  abrirModalEmergencia(): void {
+    this.emailVerificacion = '';
+    this.emailError = '';
+    this.motivoEmergencia = '';
+    this.modalEmergencia = true;
   }
 
-  confirmarIniciarViaje() {
-    if (!this.miCamion || !this.miCamion.kilometraje || this.miCamion.kilometraje <= 0) return;
-    this.viajeCargando = true;
-    this.apiService.iniciarViaje({
-      id_vehiculo: this.miCamion.id_camion,
-      origen_nombre: 'Base Central',
-      origen_lat: this.miCamion.ubicacion?.lat || -8.1159,
-      origen_lng: this.miCamion.ubicacion?.lng || -79.0299,
-      destino_nombre: this.miCamion.destino?.nombre || 'Destino',
-      destino_lat: this.miCamion.destino?.lat || -8.0822,
-      destino_lng: this.miCamion.destino?.lng || -79.0144,
-      km_inicio: this.miCamion.kilometraje
-    }).subscribe({
-      next: () => { this.viajeCargando = false; this.mostrandoFormViaje = false; },
-      error: (e) => { alert('Error: ' + e.message); this.viajeCargando = false; }
-    });
+  cancelarEmergencia(): void {
+    this.modalEmergencia = false;
+    this.emailVerificacion = '';
+    this.emailError = '';
+    this.motivoEmergencia = '';
   }
 
-  confirmarFinalizarViaje() {
-    if (!this.miCamion || !this.miCamion.kilometraje || this.miCamion.kilometraje <= (this.miCamion.km_inicio_viaje || 0)) return;
-    this.viajeCargando = true;
-    this.apiService.finalizarViaje({
-      id_vehiculo: this.miCamion.id_camion,
-      km_fin: this.miCamion.kilometraje
-    }).subscribe({
-      next: () => { this.viajeCargando = false; },
-      error: (e) => { alert('Error: ' + e.message); this.viajeCargando = false; }
-    });
+  ejecutarFinalizarEmergencia(): void {
+    try {
+      const emailUsuario = this.usuarioActual?.email?.trim().toLowerCase();
+      const emailIngresado = this.emailVerificacion.trim().toLowerCase();
+      if (!emailIngresado) { this.emailError = 'Ingresa tu correo para confirmar.'; return; }
+      if (emailIngresado !== emailUsuario) { this.emailError = 'El correo no coincide con tu cuenta. Verifica e intenta de nuevo.'; return; }
+      if (!this.miCamion) return;
+
+      this.viajeCargando = true;
+      this.emailError = '';
+
+      this.apiService.registrarEmergencia({
+        id_vehiculo: this.miCamion.id_camion,
+        email_conductor: emailIngresado,
+        motivo: this.motivoEmergencia.trim() || 'No especificado'
+      }).subscribe({
+        next: () => {
+          this.apiService.finalizarViaje({
+            id_vehiculo: this.miCamion.id_camion,
+            km_fin: this.miCamion.kilometraje
+          }).subscribe({
+            next: () => { this.viajeCargando = false; this.cancelarEmergencia(); },
+            error: (e: any) => {
+              console.error('[ConductorComponent.ejecutarFinalizarEmergencia] Error al finalizar viaje:', e);
+              this.viajeCargando = false;
+              this.cancelarEmergencia();
+            }
+          });
+        },
+        error: (e: any) => {
+          console.error('[ConductorComponent.ejecutarFinalizarEmergencia] Error al registrar emergencia:', e);
+          this.emailError = 'Error al registrar la emergencia. Intenta de nuevo.';
+          this.viajeCargando = false;
+        }
+      });
+    } catch (e) {
+      console.error('[ConductorComponent.ejecutarFinalizarEmergencia] Error inesperado:', e);
+      this.emailError = 'Error inesperado. Revisa la consola.';
+      this.viajeCargando = false;
+    }
   }
 
   toggleTema() {

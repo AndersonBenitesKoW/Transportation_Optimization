@@ -417,8 +417,10 @@ class VehiculoUpdate(BaseModel):
     conductor_asignado: str | None = None
 
 class ComponenteData(BaseModel):
-    kilometraje_acumulado: float = 0.0
+    kilometraje_reparacion: float = 0.0
     tiempo_vida: float = 0.0
+    km_en_ultima_reparacion: float = 0.0
+    km_desde_reparacion: float = 0.0
     ultima_reparacion: datetime | None = None
     proxima_reparacion: datetime | None = None
 
@@ -624,14 +626,22 @@ def obtener_componentes(id_vehiculo: str):
         componentes_ref = db.collection('vehiculos').document(id_vehiculo).collection('componentes')
         docs = componentes_ref.stream()
 
+        def _fecha_str(val):
+            if val is None or isinstance(val, str):
+                return val
+            return val.isoformat() if hasattr(val, 'isoformat') else str(val)
+
         componentes = {}
         for doc in docs:
-            data = doc.to_dict()
-            if 'ultima_reparacion' in data and data['ultima_reparacion']:
-                data['ultima_reparacion'] = data['ultima_reparacion'].isoformat()
-            if 'proxima_reparacion' in data and data['proxima_reparacion']:
-                data['proxima_reparacion'] = data['proxima_reparacion'].isoformat()
-            componentes[doc.id] = data
+            try:
+                data = doc.to_dict()
+                if 'ultima_reparacion' in data and data['ultima_reparacion']:
+                    data['ultima_reparacion'] = _fecha_str(data['ultima_reparacion'])
+                if 'proxima_reparacion' in data and data['proxima_reparacion']:
+                    data['proxima_reparacion'] = _fecha_str(data['proxima_reparacion'])
+                componentes[doc.id] = data
+            except Exception as doc_err:
+                print(f"⚠️ Error procesando componente {doc.id}: {doc_err}")
 
         return {"status": "success", "data": componentes}
     except HTTPException:
@@ -653,10 +663,13 @@ def obtener_componente(id_vehiculo: str, nombre_componente: str):
             raise HTTPException(status_code=404, detail=f"Componente '{nombre_componente}' no encontrado")
 
         data = doc.to_dict()
+        def _fs(v):
+            if v is None or isinstance(v, str): return v
+            return v.isoformat() if hasattr(v, 'isoformat') else str(v)
         if 'ultima_reparacion' in data and data['ultima_reparacion']:
-            data['ultima_reparacion'] = data['ultima_reparacion'].isoformat()
+            data['ultima_reparacion'] = _fs(data['ultima_reparacion'])
         if 'proxima_reparacion' in data and data['proxima_reparacion']:
-            data['proxima_reparacion'] = data['proxima_reparacion'].isoformat()
+            data['proxima_reparacion'] = _fs(data['proxima_reparacion'])
 
         return {"status": "success", "data": data}
     except HTTPException:
@@ -884,23 +897,71 @@ def listar_alertas(estado: str = None):
         alertas_ref = alertas_ref.order_by('fecha_creacion', direction='DESCENDING').limit(50)
         docs = alertas_ref.stream()
         
+        def _to_iso(val):
+            if val is None:
+                return None
+            if isinstance(val, str):
+                return val
+            if hasattr(val, 'isoformat'):
+                return val.isoformat()
+            return str(val)
+
         alertas = []
         for doc in docs:
-            alerta = doc.to_dict()
-            alerta['id'] = doc.id
-            
-            # Convertir fechas
-            if 'fecha_creacion' in alerta:
-                alerta['fecha_creacion'] = alerta['fecha_creacion'].isoformat()
-            if 'fecha_limite' in alerta:
-                alerta['fecha_limite'] = alerta['fecha_limite'].isoformat()
-            if 'fecha_resolucion' in alerta:
-                alerta['fecha_resolucion'] = alerta['fecha_resolucion'].isoformat()
-            
-            alertas.append(alerta)
+            try:
+                alerta = doc.to_dict()
+                alerta['id'] = doc.id
+                for campo in ('fecha_creacion', 'fecha_limite', 'fecha_resolucion'):
+                    if campo in alerta:
+                        alerta[campo] = _to_iso(alerta[campo])
+                alertas.append(alerta)
+            except Exception as doc_err:
+                print(f"⚠️ Error procesando alerta {doc.id}: {doc_err}")
         
         return {"status": "success", "data": alertas}
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class EmergenciaRequest(BaseModel):
+    id_vehiculo: str
+    email_conductor: str
+    motivo: str | None = None
+
+@app.post("/api/alertas/emergencia")
+def registrar_emergencia(datos: EmergenciaRequest):
+    """Conductor finaliza viaje abruptamente — notifica a admin y conductores"""
+    try:
+        mensaje = (
+            f"EMERGENCIA: El conductor del vehiculo {datos.id_vehiculo} "
+            f"({datos.email_conductor}) finalizó el viaje abruptamente. "
+            f"Motivo: {datos.motivo or 'No especificado'}"
+        )
+        alerta_doc = {
+            "tipo_alerta": "EMERGENCIA_CONDUCTOR",
+            "id_vehiculo": datos.id_vehiculo,
+            "email_conductor": datos.email_conductor,
+            "mensaje": mensaje,
+            "gravedad": "alta",
+            "estado": "Pendiente",
+            "destinatarios": ["admin", "todos_conductores"],
+            "requiere_atencion": True,
+            "fecha_creacion": datetime.now()
+        }
+        db.collection("alertas").add(alerta_doc)
+
+        incidente_doc = {
+            "tipo": "EMERGENCIA_CONDUCTOR",
+            "id_vehiculo": datos.id_vehiculo,
+            "descripcion": mensaje,
+            "estado": "activo",
+            "fecha": datetime.now()
+        }
+        db.collection("incidentes_flota").add(incidente_doc)
+
+        print(f"🚨 Emergencia registrada para {datos.id_vehiculo} por {datos.email_conductor}")
+        return {"status": "success", "message": "Alerta de emergencia registrada y notificada"}
+    except Exception as e:
+        print(f"❌ Error registrando emergencia: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.put("/api/alertas/{id_alerta}")
@@ -1024,11 +1085,14 @@ def iniciar_viaje(viaje: ViajeIniciar):
             viaje.origen_lat, viaje.origen_lng,
             viaje.destino_lat, viaje.destino_lng
         )
-        
-        # =========================================================
-        # ¡NUEVO SEGURO! Evitar "viajes fantasma" de 0 km
-        # =========================================================
-        if dist_km < 0.05:  # Si está a menos de 50 metros
+
+        # OSRM no pudo calcular la ruta (fallo de red, timeout, coords inválidas)
+        if puntos_ruta is None:
+            print(f"❌ OSRM falló para {viaje.id_vehiculo}: origen=({viaje.origen_lat},{viaje.origen_lng}) destino=({viaje.destino_lat},{viaje.destino_lng})")
+            raise HTTPException(status_code=503, detail="No se pudo calcular la ruta. El servicio de mapas no está disponible en este momento. Intenta de nuevo en unos segundos.")
+
+        # Evitar "viajes fantasma" de 0 km (origen y destino son el mismo punto)
+        if dist_km < 0.05:
             raise HTTPException(status_code=400, detail="El camión ya se encuentra en este destino. Debes asignarle una nueva ruta.")
         
         # Convertimos a formato Firebase
@@ -1065,13 +1129,25 @@ def iniciar_viaje(viaje: ViajeIniciar):
             "nueva_orden": True # <--- LA BANDERA QUE OBLIGARÁ AL SIMULADOR A OBEDECER
         }
 
+        # Leer telemetria actual: capturar combustible al inicio del viaje para medir consumo real
+        tele_existente = None
+        try:
+            tele_existente = tele_ref.get()
+            if tele_existente.exists:
+                combustible_inicio = tele_existente.to_dict().get('combustible_actual_L', 0)
+                if combustible_inicio > 0:
+                    update_data['combustible_inicio_viaje_L'] = combustible_inicio
+        except Exception as e_tele:
+            print(f"[iniciar_viaje] Error al leer telemetria inicial: {e_tele}")
+
         if viaje.ubicacion_inicial_lat and viaje.ubicacion_inicial_lng:
             update_data["ubicacion_inicial"] = {
                 "nombre": viaje.ubicacion_inicial_nombre or "Posicion inicial",
                 "lat": viaje.ubicacion_inicial_lat,
                 "lng": viaje.ubicacion_inicial_lng
             }
-            tele_existente = tele_ref.get()
+            if tele_existente is None:
+                tele_existente = tele_ref.get()
             if not tele_existente.exists or not tele_existente.to_dict().get('ubicacion'):
                 update_data["ubicacion"] = {
                     "lat": viaje.ubicacion_inicial_lat,
@@ -1128,6 +1204,12 @@ def finalizar_viaje(viaje: ViajeFinalizar):
         origen = tele_data.get('origen_viaje', {})
         destino = tele_data.get('destino_viaje', {})
 
+        # Calcular consumo real del viaje usando snapshot de combustible guardado al iniciar
+        combustible_inicio_viaje = tele_data.get('combustible_inicio_viaje_L', 0)
+        combustible_actual = tele_data.get('combustible_actual_L', 0)
+        combustible_consumido_L = round(max(0.0, combustible_inicio_viaje - combustible_actual), 2) if combustible_inicio_viaje > 0 else 0.0
+        rendimiento_km_l = round(km_recorridos / combustible_consumido_L, 2) if combustible_consumido_L > 0 else 0.0
+
         km_osrm = 0.0
         try:
             _, dist = routing_engine.obtener_ruta_optima(
@@ -1153,7 +1235,8 @@ def finalizar_viaje(viaje: ViajeFinalizar):
             "km_osrm": km_osrm,
             "desviacion_km": desviacion,
             "distancia_recorrida_km": round(km_recorridos, 2),
-            "combustible_total_consumido_L": 0,
+            "combustible_total_consumido_L": combustible_consumido_L,
+            "rendimiento_km_l": rendimiento_km_l,
             "fecha_inicio_viaje": tele_data.get('fecha_inicio_viaje', datetime.now()),
             "fecha_fin_viaje": datetime.now(),
             "fecha_viaje": datetime.now(),
@@ -1161,7 +1244,65 @@ def finalizar_viaje(viaje: ViajeFinalizar):
         }
         db.collection('historial_viajes').add(viaje_doc)
 
-        tele_ref.update({"viaje_activo": False})
+        # Verificar consumo vs promedio historico de flota y generar alerta si hay exceso >= 15%
+        if combustible_consumido_L > 0 and km_recorridos > 0:
+            try:
+                viajes_hist = db.collection('historial_viajes')\
+                    .where('combustible_total_consumido_L', '>', 0)\
+                    .limit(50).stream()
+                consumos_hist = []
+                for doc_hist in viajes_hist:
+                    d_hist = doc_hist.to_dict()
+                    km_h = d_hist.get('distancia_recorrida_km', 0) or d_hist.get('km_recorridos', 0)
+                    comb_h = d_hist.get('combustible_total_consumido_L', 0)
+                    if km_h > 0 and comb_h > 0:
+                        consumos_hist.append(comb_h / km_h)
+
+                avg_l_km = round(sum(consumos_hist) / len(consumos_hist), 4) if consumos_hist else 0.35
+                consumo_esperado_L = round(km_recorridos * avg_l_km, 2)
+                rendimiento_hist_km_l = round(1 / avg_l_km, 2) if avg_l_km > 0 else 0.0
+                desviacion_pct = round(((combustible_consumido_L - consumo_esperado_L) / consumo_esperado_L) * 100, 1) if consumo_esperado_L > 0 else 0.0
+
+                if desviacion_pct > 15:
+                    gravedad = "alta" if desviacion_pct > 30 else "media"
+                    db.collection("alertas").add({
+                        "tipo_alerta": "CONSUMO_EXCESIVO",
+                        "id_vehiculo": viaje.id_vehiculo,
+                        "conductor": tele_data.get('conductor_asignado', {}).get('nombre', ''),
+                        "mensaje": (
+                            f"Consumo excesivo en {viaje.id_vehiculo}: {combustible_consumido_L}L consumidos "
+                            f"(esperado {consumo_esperado_L}L, +{desviacion_pct}% sobre promedio historico). "
+                            f"Rendimiento real: {rendimiento_km_l} km/L vs historico: {rendimiento_hist_km_l} km/L. "
+                            f"Posible conduccion ineficiente o robo de combustible."
+                        ),
+                        "gravedad": gravedad,
+                        "estado": "Pendiente",
+                        "rendimiento_real_km_l": rendimiento_km_l,
+                        "rendimiento_historico_km_l": rendimiento_hist_km_l,
+                        "consumo_real_L": combustible_consumido_L,
+                        "consumo_esperado_L": consumo_esperado_L,
+                        "desviacion_pct": desviacion_pct,
+                        "km_recorridos": round(km_recorridos, 2),
+                        "requiere_atencion": True,
+                        "fecha_creacion": datetime.now()
+                    })
+                    print(f"🚨 Alerta consumo excesivo: {viaje.id_vehiculo} +{desviacion_pct}% sobre historico ({combustible_consumido_L}L vs {consumo_esperado_L}L esperado)")
+            except Exception as e_alerta:
+                print(f"[finalizar_viaje] Error al evaluar consumo historico: {e_alerta}")
+
+        tele_ref.update({
+            "viaje_activo": False,
+            "puntos_ruta": [],
+            "puntos_reposicion": [],
+            "destino": {},
+            "origen_viaje": {},
+            "destino_viaje": {},
+            "fase_viaje": "",
+            "mision": "",
+            "distancia_restante_km": 0,
+            "nueva_orden": False
+        })
+        print(f"✅ Viaje finalizado y ruta limpiada para {viaje.id_vehiculo}")
 
         vehiculo_ref = db.collection('vehiculos').document(viaje.id_vehiculo)
         if vehiculo_ref.get().exists:
@@ -1175,6 +1316,67 @@ def finalizar_viaje(viaje: ViajeFinalizar):
     except HTTPException:
         raise
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/rendimiento-combustible")
+def get_rendimiento_combustible():
+    try:
+        viajes_hist = db.collection('historial_viajes')\
+            .where('combustible_total_consumido_L', '>', 0)\
+            .limit(100).stream()
+
+        consumos_l_km = []
+        por_vehiculo: dict = {}
+
+        for doc_v in viajes_hist:
+            d = doc_v.to_dict()
+            km = d.get('distancia_recorrida_km', 0) or d.get('km_recorridos', 0)
+            comb = d.get('combustible_total_consumido_L', 0)
+            id_v = d.get('id_vehiculo', '')
+            if km > 0 and comb > 0:
+                l_km = comb / km
+                consumos_l_km.append(l_km)
+                if id_v not in por_vehiculo:
+                    por_vehiculo[id_v] = []
+                por_vehiculo[id_v].append({
+                    "km_l": round(km / comb, 2),
+                    "l_km": round(l_km, 4),
+                    "km": round(km, 2),
+                    "combustible_L": round(comb, 2)
+                })
+
+        GAL_POR_LITRO = 1 / 3.785
+        if consumos_l_km:
+            avg_l_km = round(sum(consumos_l_km) / len(consumos_l_km), 4)
+            avg_km_l = round(1 / avg_l_km, 2)
+            avg_km_gal = round(avg_km_l / GAL_POR_LITRO, 2)
+        else:
+            avg_l_km = 0.35
+            avg_km_l = round(1 / 0.35, 2)
+            avg_km_gal = round(avg_km_l / GAL_POR_LITRO, 2)
+
+        resumen_vehiculos = {
+            vid: {
+                "promedio_km_l": round(sum(v["km_l"] for v in viajes) / len(viajes), 2),
+                "viajes": len(viajes)
+            }
+            for vid, viajes in por_vehiculo.items()
+        }
+
+        return {
+            "status": "success",
+            "data": {
+                "promedio_historico_l_km": avg_l_km,
+                "promedio_historico_km_l": avg_km_l,
+                "promedio_historico_km_gal": avg_km_gal,
+                "total_viajes_con_datos": len(consumos_l_km),
+                "umbral_alerta_pct": 15,
+                "por_vehiculo": resumen_vehiculos,
+                "fuente": "historico" if consumos_l_km else "constante_base"
+            }
+        }
+    except Exception as e:
+        print(f"[rendimiento-combustible] Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/viajes")
@@ -1254,27 +1456,29 @@ def listar_alertas_mantenimiento(id_vehiculo: str = None):
                 datos = comp_doc.to_dict()
                 if not isinstance(datos, dict):
                     continue
-                km_acum = datos.get('kilometraje_acumulado', 0)
+                umbral = datos.get('kilometraje_reparacion', 0)
+                km_desde_reparacion = datos.get('km_desde_reparacion', 0)
                 tiempo_vida = datos.get('tiempo_vida', 0)
 
-                if tiempo_vida <= 0:
+                if umbral <= 0 and tiempo_vida <= 0:
                     continue
 
-                pct = km_acum / tiempo_vida if tiempo_vida > 0 else 0
+                # Porcentaje: avance de km_desde_reparacion hacia el umbral de alerta
+                pct = (km_desde_reparacion / umbral) if umbral > 0 else (1.0 if tiempo_vida <= 0 else 0)
 
-                if pct >= UMBRAL_MANTENIMIENTO_PCT:
-                    tipo_alerta = 'cambio_pieza' if pct >= 1.0 else 'mantenimiento_preventivo'
-                    gravedad = 'critico' if pct >= 1.0 else 'advertencia'
+                if pct >= UMBRAL_MANTENIMIENTO_PCT or tiempo_vida <= 0:
+                    tipo_alerta = 'cambio_pieza' if tiempo_vida <= 0 else 'mantenimiento_preventivo'
+                    gravedad = 'critico' if tiempo_vida <= 0 else 'advertencia'
 
                     alertas.append({
                         "id_vehiculo": vid,
                         "componente": nombre_comp,
-                        "kilometraje_acumulado": km_acum,
+                        "km_desde_reparacion": km_desde_reparacion,
                         "tiempo_vida_km": tiempo_vida,
                         "porcentaje_desgaste": round(pct * 100, 1),
                         "tipo_alerta": tipo_alerta,
                         "gravedad": gravedad,
-                        "mensaje": f"{nombre_comp.capitalize()} de {vid} al {round(pct*100,1)}% de desgaste ({km_acum}/{tiempo_vida} km). {'Se requiere cambio inmediato.' if pct >= 1.0 else 'Proximo a requerir mantenimiento.'}",
+                        "mensaje": f"{nombre_comp.capitalize()} de {vid} al {round(pct*100,1)}% del umbral ({km_desde_reparacion}/{umbral} km). Vida restante: {tiempo_vida} km. {'Se requiere cambio inmediato.' if tiempo_vida <= 0 else 'Proximo a requerir mantenimiento.'}",
                         "conductor_asignado": vehiculo.get('conductor_asignado', '')
                     })
 

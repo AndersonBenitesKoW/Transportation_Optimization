@@ -309,3 +309,73 @@
 .alerta-card-resolve--danger:hover {
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3) !important;
 }
+
+/* TAG de componente en la cabecera */
+.alerta-card-comp-tag {
+  font-weight: 600;
+  color: var(--color-orange-500);
+}
+
+/* SECCIÓN MOTIVO */
+.alerta-motivo {
+  background: var(--bg-secondary, rgba(0,0,0,0.03));
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.alerta-motivo-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+}
+
+.alerta-motivo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.alerta-motivo-key {
+  color: var(--text-secondary);
+}
+
+.alerta-motivo-val {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.alerta-motivo-val--warn {
+  color: #d97706;
+}
+
+.alerta-motivo-val--danger {
+  color: var(--color-danger);
+}
+
+/* BARRA DE PROGRESO KM */
+.alerta-motivo-bar {
+  height: 5px;
+  background: var(--border-color);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin: 6px 0 4px;
+}
+
+.alerta-motivo-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+/* ACCIONES */
+.alerta-card-actions {
+  display: flex;
+  gap: 8px;
+}

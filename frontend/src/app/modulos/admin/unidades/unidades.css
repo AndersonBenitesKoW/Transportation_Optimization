@@ -572,3 +572,30 @@
 .btn--danger:hover {
   background: linear-gradient(to right, var(--color-danger-dark), #b91c1c);
 }
+
+/* =========================================================================
+   ALERTAS DE COMPONENTES
+   ========================================================================= */
+
+.comp-status {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.comp-status--critico {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--color-danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.comp-status--alerta {
+  background: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}

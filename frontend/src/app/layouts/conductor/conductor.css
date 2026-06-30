@@ -840,6 +840,43 @@
   animation: spin 1s linear infinite;
 }
 
+.conductor-btn--danger {
+  background: linear-gradient(to right, #dc2626, #ef4444);
+  color: #fff;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.conductor-btn--danger:hover:not(:disabled) {
+  background: linear-gradient(to right, #b91c1c, #dc2626);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.4);
+}
+
+.conductor-btn--danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.conductor-modal--emergencia {
+  border: 2px solid rgba(220, 38, 38, 0.4);
+}
+
+.conductor-modal-icon--danger {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+}
+
 /* ANIMATIONS */
 @keyframes pulseGlow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 107, 0, 0.4); }

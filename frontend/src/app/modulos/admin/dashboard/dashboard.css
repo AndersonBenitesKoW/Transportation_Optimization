@@ -665,3 +665,79 @@
   padding-top: 8px;
   border-top: 1px solid var(--border-color);
 }
+
+/* RENDIMIENTO HISTORICO COMBUSTIBLE */
+.dashboard-rendimiento {
+  margin-bottom: 32px;
+}
+
+.rendimiento-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.rendimiento-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rendimiento-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.rendimiento-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--color-orange-500);
+  margin: 4px 0 0;
+  line-height: 1;
+}
+
+.rendimiento-value--main {
+  font-size: 2.5rem;
+}
+
+.rendimiento-unit {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin: 2px 0 0;
+}
+
+.rendimiento-sub {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-color);
+}
+
+.rendimiento-sub--historico {
+  color: #16a34a;
+}
+
+.rendimiento-sub--base {
+  color: var(--color-warning);
+}
+
+.rendimiento-nota {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--color-orange-500);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0;
+}
