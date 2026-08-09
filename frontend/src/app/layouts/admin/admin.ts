@@ -1,9 +1,9 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { AuthService } from '../../services/auth.service';
-import { ThemeService } from '../../services/theme.service';
-import { IconComponent } from '../../components/icon.component';
+import { AuthService } from '../../core/services/auth.service';
+import { ThemeService } from '../../core/services/theme.service';
+import { IconComponent } from '../../shared/ui/icon.component';
 
 @Component({
   selector: 'app-admin-layout',

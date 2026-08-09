@@ -1,8 +1,8 @@
 import { Component, HostListener, inject } from '@angular/core';
 import { RouterOutlet, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { ThemeService } from '../../services/theme.service';
-import { IconComponent } from '../../components/icon.component';
+import { ThemeService } from '../../core/services/theme.service';
+import { IconComponent } from '../../shared/ui/icon.component';
 
 @Component({
   selector: 'app-publico-layout',
