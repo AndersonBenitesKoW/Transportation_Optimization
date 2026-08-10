@@ -20,15 +20,15 @@ ________________________________________
 3. Resumen de flujo de trabajo diario
 Cada vez que vuelvas a trabajar en el proyecto, solo necesitas hacer esto:
 Para el Backend:
-1.	cd backend
-2.	.\venv\Scripts\activate
-    py scripts\simulator.py          (el simulador se movio a la carpeta scripts\)
-3.	uvicorn main:app --reload        (equivalente: uvicorn app.main:app --reload)
+1.Backend:
+1.  cd backend
+2. .\venv\Scripts\activate
+    py scripts\simulator.py          ← ÚNICO CAMBIO (antes: py simulator.py)
+3.  uvicorn main:app --reload
 
-
-Para el Frontend:
-1.	cd fleetmind-fronted (o tu carpeta de Angular)
-2.	ng serve -o
+Frontend:
+1.  cd frontend
+2.  npx ng serve -o
 ________________________________________
 Solución a errores comunes en Windows:
 •	Si ng no se reconoce: Usa npx ng serve -o.
